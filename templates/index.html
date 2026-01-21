@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compactador de PDFs</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <style>
+        :root { 
+            --primary: #10b981; /* Emerald 500 */
+            --primary-hover: #059669; 
+            --dark: #0f172a; /* Slate 900 */
+            --bg-skeleton: #f1f5f9;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f8fafc; 
+            color: #334155;
+        }
+
+        /* Header e Logo */
+        .navbar { background: white; border-bottom: 1px solid #e2e8f0; padding: 1rem 0; }
+        .logo-wrapper { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.25rem; color: var(--dark); text-decoration: none; }
+        .logo-icon { width: max-content; height: auto; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; }
+
+        /* Stats Bar - Suspensa e Flutuante */
+        .stats-bar { 
+            position: sticky; top: 15px; z-index: 1000; 
+            background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(10px);
+            color: white; padding: 12px 24px; border-radius: 12px;
+            margin: 0 auto 30px; border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        /* Grid e Cards */
+        .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px; }
+        .page-card { 
+            border: none; border-radius: 12px; padding: 12px; background: white; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .page-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px rgba(0,0,0,0.05); }
+        canvas { width: 100%; height: auto; border-radius: 8px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.05)); }
+
+        /* Form Controls */
+        .form-control, .form-select { border-radius: 8px; border: 1px solid #e2e8f0; padding: 0.6rem; font-size: 0.9rem; }
+        .btn-success { background: var(--primary); border: none; border-radius: 8px; font-weight: 600; padding: 0.6rem 1.5rem; transition: 0.3s; }
+        .btn-success:hover { background: var(--primary-hover); transform: scale(1.02); }
+        
+        /* Overlay e Skeletons */
+        #progressOverlay { 
+            display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.95); 
+            z-index: 9999; color: white; flex-direction: column; justify-content: center; align-items: center; 
+        }
+        @keyframes skeleton-glow { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        .skeleton-card { border-radius: 12px; padding: 12px; background: white; animation: skeleton-glow 1.5s infinite; border: 1px solid #e2e8f0; }
+        .skeleton-img { width: 100%; aspect-ratio: 3/4; background: var(--bg-skeleton); border-radius: 8px; }
+        .skeleton-text { height: 12px; width: 40%; background: var(--bg-skeleton); margin: 10px auto; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar mb-4">
+    <div class="container">
+        <a href="#" class="logo-wrapper">
+            <div class="logo-icon">
+                <img src="https://laurodefreitas.ba.gov.br/site/LogoLauro_Horizontal1.jpg" alt="Logo Lauro">
+            </div>
+        </a>
+    </div>
+</nav>
+
+<div id="progressOverlay">
+    <div class="spinner-grow text-primary mb-4" role="status"></div>
+    <h3 id="statusText" class="fw-bold">Processando Documento</h3>
+    <div class="progress mt-3" style="width: 300px; height: 10px; border-radius: 20px; background: rgba(255,255,255,0.1);">
+        <div id="progressBar" class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
+    </div>
+    <p class="text-white-50 mt-3 small">Otimizando imagens e vetores via Ghostscript...</p>
+</div>
+
+<div class="container">
+    <div class="stats-bar shadow d-flex justify-content-between align-items-center">
+        <div class="d-flex gap-3 align-items-center">
+            <div class="small">
+                <span class="text-white-50 d-block" style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px;">Original</span>
+                <span class="fw-bold" id="origSize">0.00</span> MB
+            </div>
+            <div class="vr opacity-25"></div>
+            <div class="small">
+                <span class="text-white-50 d-block" style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px;">Estimado</span>
+                <span class="fw-bold text-primary" id="estSize">0.00</span> MB
+            </div> 
+        </div>
+        <div class="text-center">
+            <span class="badge rounded-pill bg-primary" style="font-size: 0.9rem;">-<span id="reduction">0</span>%</span>
+        </div>
+        <button form="mainForm" type="submit" id="btnDownload" class="btn btn-success shadow-sm">Otimizar Agora</button>
+    </div>
+
+    <div class="card p-4 mb-4 border-0 shadow-sm" style="border-radius: 16px;">
+        <div class="row align-items-center">
+            <div class="col-md-5">
+                <label class="form-label fw-600">Carregar Arquivo</label>
+                <input type="file" id="pdfInput" class="form-control" accept=".pdf">
+            </div>
+            <div class="col-md-7 text-md-end mt-4 mt-md-0">
+                <span class="d-block small text-muted mb-2 fw-bold">Nivel de Compressão</span>
+                <div class="btn-group w-100 w-md-auto shadow-sm">
+                    <button type="button" class="btn btn-outline-secondary px-3" onclick="bulkApply(1)">Padrão</button>
+                    <button type="button" class="btn btn-outline-secondary px-3" onclick="bulkApply(2)">Leve (HQ)</button>
+                    <button type="button" class="btn btn-outline-secondary px-3" onclick="bulkApply(3)">Média (150dpi)</button>
+                    <button type="button" class="btn btn-dark px-3" onclick="bulkApply(4)">Alta (72dpi)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form id="mainForm" method="post" enctype="multipart/form-data">
+        <input type="file" name="pdf" id="hiddenFile" style="display:none">
+        <input type="hidden" name="config_map" id="configMapInput">
+        <div id="previewArea" class="preview-grid">
+            </div>
+    </form>
+</div>
+
+<script>
+    // ... Toda a lógica JS anterior se mantém aqui ...
+    // Apenas certifique-se de que o seletor da bulkApply e renderThumbnail use os nomes novos (Fidelidade, Padrão, Ebook, Mobile)
+    
+    const pdfjsLib = window['pdfjs-dist/build/pdf'];
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+    const pdfInput = document.getElementById('pdfInput');
+    const previewArea = document.getElementById('previewArea');
+    let pageConfigs = {};
+    let originalSizeMB = 0;
+    let totalPages = 0;
+
+    pdfInput.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file || file.type !== "application/pdf") return;
+
+        const dt = new DataTransfer(); dt.items.add(file);
+        document.getElementById('hiddenFile').files = dt.files;
+
+        originalSizeMB = file.size / (1024 * 1024);
+        document.getElementById('origSize').innerText = originalSizeMB.toFixed(2);
+
+        const reader = new FileReader();
+        reader.onload = async function() {
+            const typedarray = new Uint8Array(this.result);
+            const pdf = await pdfjsLib.getDocument(typedarray).promise;
+            totalPages = pdf.numPages;
+            
+            previewArea.innerHTML = ""; 
+            pageConfigs = {}; 
+
+            for (let i = 0; i < totalPages; i++) {
+                const skeleton = document.createElement('div');
+                skeleton.className = "skeleton-card";
+                skeleton.id = `page-container-${i}`;
+                skeleton.innerHTML = `<div class="skeleton-img"></div><div class="skeleton-text"></div>`;
+                previewArea.appendChild(skeleton);
+                pageConfigs[i] = 3;
+            }
+
+            for (let i = 0; i < totalPages; i++) {
+                await renderThumbnail(pdf, i);
+            }
+            atualizarEstimativa();
+        };
+        reader.readAsArrayBuffer(file);
+    };
+
+    async function renderThumbnail(pdf, idx) {
+        const page = await pdf.getPage(idx + 1);
+        const viewport = page.getViewport({ scale: 0.3 });
+        const container = document.getElementById(`page-container-${idx}`);
+        
+        const canvas = document.createElement('canvas');
+        await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+
+        container.className = "page-card";
+        container.innerHTML = `
+            <div class="canvas-wrapper mb-3"></div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="badge bg-light text-dark">Pág. ${idx + 1}</span>
+                <span class="small text-muted">Selecione a qualidade:</span>
+            </div>
+            <select class="form-select form-select-sm" data-idx="${idx}" onchange="updatePage(${idx}, this.value)">
+                <option value="1">Padrão</option>
+                <option value="2">Leve (HQ)</option>
+                <option value="3" selected>Média (150dpi)</option>
+                <option value="4">Alta (72dpi)</option>
+                <option value="5">Muito Alta (50dpi)</option>
+            </select>
+        `;
+        container.querySelector('.canvas-wrapper').appendChild(canvas);
+    }
+
+    function updatePage(idx, val) {
+        pageConfigs[idx] = parseInt(val);
+        atualizarEstimativa();
+    }
+
+    function bulkApply(val) {
+        document.querySelectorAll('.preview-grid select').forEach(s => {
+            s.value = val;
+            pageConfigs[s.dataset.idx] = val;
+        });
+        atualizarEstimativa();
+    }
+
+    function atualizarEstimativa() {
+        let fatorTotal = 0;
+        const pesoPag = originalSizeMB / totalPages;
+        Object.values(pageConfigs).forEach(v => {
+            if(v == 1) fatorTotal += pesoPag * 0.98;
+            if(v == 2) fatorTotal += pesoPag * 0.85;
+            if(v == 3) fatorTotal += pesoPag * 0.60;
+            if(v == 4) fatorTotal += pesoPag * 0.25;
+        });
+        document.getElementById('estSize').innerText = fatorTotal.toFixed(2);
+        document.getElementById('reduction').innerText = Math.max(0, ((1 - (fatorTotal / originalSizeMB)) * 100)).toFixed(0);
+        document.getElementById('configMapInput').value = JSON.stringify(pageConfigs);
+    }
+
+    document.getElementById('mainForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const overlay = document.getElementById('progressOverlay');
+        const progressBar = document.getElementById('progressBar');
+        const statusText = document.getElementById('statusText');
+        overlay.style.display = 'flex';
+        
+        try {
+            const formData = new FormData(e.target);
+            const response = await fetch('/processar', { method: 'POST', body: formData });
+            const data = await response.json();
+            if (data.task_id) {
+                const interval = setInterval(async () => {
+                    const res = await fetch(`/status/${data.task_id}`);
+                    const status = await res.json();
+                    const p = Math.round((status.current / status.total) * 100) || 0;
+                    progressBar.style.width = p + '%';
+                    statusText.innerText = status.status;
+                    if (status.status === "Concluído") {
+                        clearInterval(interval);
+                        window.location.href = data.download_url;
+                        setTimeout(() => overlay.style.display = 'none', 1000);
+                    }
+                }, 800);
+            }
+        } catch (err) {
+            overlay.style.display = 'none';
+        }
+    };
+</script>
+</body>
+</html>

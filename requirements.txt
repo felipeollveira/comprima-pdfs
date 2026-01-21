@@ -1,2 +1,2 @@
-ghostscript==0.7
-pymupdf==1.22.5
+ghostscript
+pymupdf
