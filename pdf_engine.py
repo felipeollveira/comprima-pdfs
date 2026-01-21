@@ -38,7 +38,7 @@ def executar_gs(input_path, output_path, nivel_idx):
             '-dAlwaysEmbed=false',              # Não forçar embutir todas as fontes
             '-dEmbedAllFonts=false',            # Tentar remover fontes desnecessárias
             '-dColorImageDownsampleType=/Bicubic', # Melhor algoritmo de compressão
-            '-dColorImageResolution=72' if nivel_idx == 4 else '-dColorImageResolution=150',
+            '-dColorImageResolution=72' if nivel_idx == 4 else '-dColorImageResolution=140',
             '-dNOPAUSE', '-dQUIET', '-dBATCH',
             f'-sOutputFile={output_path}', input_path
         ]
