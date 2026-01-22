@@ -1,4 +1,4 @@
-ghostscript
+flask
 pymupdf
 pikepdf
-flask
+ocrmypdf
