@@ -114,7 +114,7 @@
                     <button type="button" class="btn btn-outline-secondary px-3" onclick="bulkApply(3)">Média (150dpi)</button>
                     <button type="button" class="btn btn-outline-secondary px-3" onclick="bulkApply(4)">Alta (72dpi)</button>
                     <button type="button" class="btn btn-outline-secondary px-3" onclick="bulkApply(5)">Muito Alta (50dpi)</button>
-                    <button type="button" class="btn btn-dark px-3" onclick="bulkApply(4)">OCR + Dividir</button>
+                    <button type="button" class="btn btn-dark px-3" onclick="bulkApply(6)">OCR+Dividir</button>
 
 
                 </div>
@@ -213,7 +213,7 @@
     function bulkApply(val) {
         document.querySelectorAll('.preview-grid select').forEach(s => {
             s.value = val;
-            pageConfigs[s.dataset.idx] = val;
+            pageConfigs[s.dataset.idx] = parseInt(val);
         });
         atualizarEstimativa();
     }
@@ -226,6 +226,7 @@
             if(v == 2) fatorTotal += pesoPag * 0.85;
             if(v == 3) fatorTotal += pesoPag * 0.60;
             if(v == 4) fatorTotal += pesoPag * 0.25;
+            if(v == 5) fatorTotal += pesoPag * 0.15;
         });
         document.getElementById('estSize').innerText = fatorTotal.toFixed(2);
         document.getElementById('reduction').innerText = Math.max(0, ((1 - (fatorTotal / originalSizeMB)) * 100)).toFixed(0);

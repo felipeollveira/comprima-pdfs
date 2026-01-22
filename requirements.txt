@@ -1,2 +1,4 @@
 ghostscript
 pymupdf
+pikepdf
+flask

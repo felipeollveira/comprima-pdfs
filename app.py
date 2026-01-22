@@ -2,17 +2,14 @@ import os
 import uuid
 import json
 from flask import Flask, render_template, request, send_file, jsonify
-from pdf_engine import processar_pdf_custom
+
+from engines.execute_gs import processar_pdf_custom
+
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-from flask import Flask, render_template, request, send_file, jsonify
-import json, os, uuid
-from pdf_engine import processar_pdf_custom
-
-app = Flask(__name__)
 # Armazena o progresso: { task_id: { "current": 0, "total": 100 } }
 progress_db = {}
 
@@ -22,8 +19,8 @@ def processar():
     config_map = json.loads(request.form.get('config_map', '{}'))
     task_id = str(uuid.uuid4())
     
-    input_path = os.path.join('uploads', f"{task_id}_{file.filename}")
-    output_path = os.path.join('uploads', f"opt_{task_id}_{file.filename}")
+    input_path = os.path.join(UPLOAD_FOLDER, f"{task_id}_{file.filename}")
+    output_path = os.path.join(UPLOAD_FOLDER, f"opt_{task_id}_{file.filename}")
     file.save(input_path)
 
     # Inicializa progresso
