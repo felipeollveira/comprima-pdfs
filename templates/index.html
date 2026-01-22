@@ -215,23 +215,38 @@
             s.value = val;
             pageConfigs[s.dataset.idx] = parseInt(val);
         });
-        atualizarEstimativa();
+        
+        if(val == 6) {
+            document.getElementById('statusText').innerText = "OCR é um processo lento. Aguarde.";
+            document.getElementById('estSize').innerText = "N/A";
+        } else {
+            atualizarEstimativa();
+    }
+}
+
+   function atualizarEstimativa() {
+    let isOCR = Object.values(pageConfigs).includes(6);
+    
+    if (isOCR) {
+        document.getElementById('estSize').innerText = "--";
+        document.getElementById('reduction').innerText = "OCR";
+        document.getElementById('configMapInput').value = JSON.stringify(pageConfigs);
+        return;
     }
 
-    function atualizarEstimativa() {
-        let fatorTotal = 0;
-        const pesoPag = originalSizeMB / totalPages;
-        Object.values(pageConfigs).forEach(v => {
-            if(v == 1) fatorTotal += pesoPag * 0.98;
-            if(v == 2) fatorTotal += pesoPag * 0.85;
-            if(v == 3) fatorTotal += pesoPag * 0.60;
-            if(v == 4) fatorTotal += pesoPag * 0.25;
-            if(v == 5) fatorTotal += pesoPag * 0.15;
-        });
-        document.getElementById('estSize').innerText = fatorTotal.toFixed(2);
-        document.getElementById('reduction').innerText = Math.max(0, ((1 - (fatorTotal / originalSizeMB)) * 100)).toFixed(0);
-        document.getElementById('configMapInput').value = JSON.stringify(pageConfigs);
-    }
+    let fatorTotal = 0;
+    const pesoPag = originalSizeMB / totalPages;
+    Object.values(pageConfigs).forEach(v => {
+        if(v == 1) fatorTotal += pesoPag * 0.98;
+        if(v == 2) fatorTotal += pesoPag * 0.85;
+        if(v == 3) fatorTotal += pesoPag * 0.60;
+        if(v == 4) fatorTotal += pesoPag * 0.25;
+        if(v == 5) fatorTotal += pesoPag * 0.15;
+    });
+    document.getElementById('estSize').innerText = fatorTotal.toFixed(2);
+    document.getElementById('reduction').innerText = Math.max(0, ((1 - (fatorTotal / originalSizeMB)) * 100)).toFixed(0);
+    document.getElementById('configMapInput').value = JSON.stringify(pageConfigs);
+}
 
     document.getElementById('mainForm').onsubmit = async (e) => {
         e.preventDefault();

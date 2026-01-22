@@ -1,9 +1,9 @@
+import pathlib
 import subprocess
 import os
 
 import fitz
 import pikepdf
-from engines.locate_gs import localizar_gs
 
 DPI = 200
 LANG = "por+eng"
@@ -54,9 +54,9 @@ def ocr(input_pdf, out_pdf):
     run(cmd)
 
 def split_volumes(pdf_path, out_dir, max_mb):
-    out_dir.mkdir(parents=True, exist_ok=True)
+    pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
     max_bytes = int(max_mb * 1024 * 1024)
-
+    
     with pikepdf.open(pdf_path) as pdf:
         total = len(pdf.pages)
         vol = 1
