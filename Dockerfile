@@ -1,7 +1,7 @@
-# Usa uma imagem Python leve baseada em Debian
+# Imagem base otimizada
 FROM python:3.10-slim-bullseye
 
-# Instala dependências do sistema (Ghostscript, Tesseract, OCRmyPDF e utilitários)
+# Instalação de dependências de sistema para PDF e OCR
 RUN apt-get update && apt-get install -y \
     ghostscript \
     ocrmypdf \
@@ -9,23 +9,24 @@ RUN apt-get update && apt-get install -y \
     tesseract-ocr-eng \
     libz-dev \
     libjpeg-dev \
+    pngquant \
+    unpaper \
     && rm -rf /var/lib/apt/lists/*
 
-# Define o diretório de trabalho
 WORKDIR /app
 
-# Copia os requisitos e instala
+# Instala dependências Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copia o restante do código
+# Copia o código fonte
 COPY . .
 
-# Cria a pasta de uploads
-RUN mkdir -p uploads
+# Garante permissões na pasta de uploads
+RUN mkdir -p uploads && chmod 777 uploads
 
-# Expõe a porta do Flask
+# Porta do Flask
 EXPOSE 5000
 
-# Comando para rodar a aplicação ouvindo todas as interfaces
+# Executa o app
 CMD ["python", "app.py"]

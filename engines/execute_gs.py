@@ -19,6 +19,7 @@ def executar_gs(input_path, output_path, nivel_idx):
         cmd = [
         gs_exe, '-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.4',
         f'-dPDFSETTINGS={perfil}',
+        '-dIgnorePageExtraStack',
         '-dAlwaysEmbed=false',              
         '-dEmbedAllFonts=false',         
         '-dColorImageDownsampleType=/Bicubic',
@@ -45,6 +46,7 @@ def executar_gs(input_path, output_path, nivel_idx):
             '-dColorImageDownsampleType=/Bicubic', # Melhor algoritmo de compressão
             '-dColorImageResolution=72' if nivel_idx == 4 else '-dColorImageResolution=140',
             '-dNOPAUSE', '-dQUIET', '-dBATCH',
+            '-dIgnorePageExtraStack',
             f'-sOutputFile={output_path}', input_path
         ]
     subprocess.run(cmd, check=True, shell=(os.name == 'nt'))

@@ -34,23 +34,33 @@ def processar():
         progress_db[task_id] = {"current": 1, "total": 4, "status": "Iniciando OCR (Processo Lento)..."}
         try:
             from engines.force_ocr import ocr, split_volumes
-            
+            import logging
             ocr_path = os.path.join(UPLOAD_FOLDER, f"ocr_{task_id}.pdf")
             ocr(input_path, ocr_path)
-            
+            logging.warning(f"OCR gerado: {ocr_path} - existe? {os.path.exists(ocr_path)} tamanho: {os.path.getsize(ocr_path) if os.path.exists(ocr_path) else 0}")
+
             progress_db[task_id] = {"current": 2, "total": 4, "status": "Dividindo em volumes..."}
             out_dir = pathlib.Path(UPLOAD_FOLDER) / task_id
             split_volumes(pathlib.Path(ocr_path), out_dir, 5.0)
-            
+
+            # Checa arquivos gerados
+            pdfs_gerados = list(out_dir.glob('*.pdf'))
+            logging.warning(f"PDFs divididos gerados em {out_dir}: {[str(p) for p in pdfs_gerados]}")
+            if not pdfs_gerados:
+                return jsonify({"error": "Nenhum PDF foi gerado na divisão. Verifique o split_volumes."}), 500
+
             progress_db[task_id] = {"current": 3, "total": 4, "status": "Criando pacote ZIP..."}
             zip_name = f"volumes_{task_id}"
             # O shutil.make_archive adiciona o .zip automaticamente
-            shutil.make_archive(os.path.join(UPLOAD_FOLDER, zip_name), 'zip', out_dir)
-            
+            zip_path = shutil.make_archive(os.path.join(UPLOAD_FOLDER, zip_name), 'zip', out_dir)
+            logging.warning(f"ZIP gerado: {zip_path} - existe? {os.path.exists(zip_path)} tamanho: {os.path.getsize(zip_path) if os.path.exists(zip_path) else 0}")
+
             progress_db[task_id] = {"current": 4, "total": 4, "status": "Concluído"}
             return jsonify({"task_id": task_id, "download_url": f"/download_zip/{zip_name}.zip"})
-            
+
         except Exception as e:
+            import traceback
+            logging.error(traceback.format_exc())
             return jsonify({"error": f"Erro no OCR: {str(e)}"}), 500
     else:
         output_path = os.path.join(UPLOAD_FOLDER, f"opt_{task_id}_{file.filename}")
@@ -108,4 +118,4 @@ def index():
     return render_template('index.html')
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True)
