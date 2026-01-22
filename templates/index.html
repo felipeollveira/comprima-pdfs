@@ -120,7 +120,7 @@
                     <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(3)">150 DPI</button>
                     <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(4)">72 DPI</button>
                     <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(5)">50 DPI</button>
-                    <button type="button" class="btn btn-dark btn-sm px-3" onclick="bulkApply(6)">OCR</button>
+                    <button type="button" class="btn btn-dark btn-sm px-3" onclick="bulkApply(6)">OCR + Dividir</button>
                 </div>
             </div>
         </div>
@@ -201,7 +201,7 @@
                 <option value="3" selected>Média (150dpi)</option>
                 <option value="4">Alta (72dpi)</option>
                 <option value="5">Muito Alta (50dpi)</option>
-                <option value="6">OCR (Camada Texto)</option>
+                <option value="6" disabled>OCR (Camada Texto)</option>
             </select>
         `;
         container.querySelector('.canvas-wrapper').appendChild(canvas);
@@ -238,6 +238,7 @@
             if(v == 3) fatorTotal += pesoPag * 0.60;
             if(v == 4) fatorTotal += pesoPag * 0.25;
             if(v == 5) fatorTotal += pesoPag * 0.15;
+            if(v == 6) fatorTotal += pesoPag * 0.10;
         });
         document.getElementById('estSize').innerText = fatorTotal.toFixed(2);
         document.getElementById('reduction').innerText = Math.max(0, ((1 - (fatorTotal / originalSizeMB)) * 100)).toFixed(0);
