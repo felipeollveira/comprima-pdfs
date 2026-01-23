@@ -26,7 +26,7 @@ def executar_gs(input_path, output_path, nivel_idx):
         '-dColorImageResolution=50',
         '-dNOPAUSE', '-dQUIET', '-dBATCH',
         '-dGrayImageResolution=72',
-        '-dMonoImageResolution=150',
+        '-dMonoImageResolution=120',
         '-dDownsampleColorImages=true',
         '-dDownsampleGrayImages=true',
         '-dDownsampleMonoImages=true',
