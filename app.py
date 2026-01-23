@@ -11,6 +11,8 @@ from engines.execute_gs import processar_pdf_custom
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
+app.static_folder = 'templates'
+
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Armazena o progresso: { task_id: { "current": 0, "total": 100 } }

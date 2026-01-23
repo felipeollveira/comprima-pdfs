@@ -7,71 +7,13 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
-    <style>
-        :root { 
-            --primary: #10b981; 
-            --primary-hover: #059669; 
-            --dark: #0f172a; 
-            --bg-skeleton: #f1f5f9;
-        }
+    <link rel="stylesheet" href="static/css/style.css">
 
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #f8fafc; 
-            color: #334155;
-            margin: 0;
-        }
-
-        /* Header e Logo */
-        .navbar { 
-            background: white; 
-            border-bottom: 1px solid #e2e8f0; 
-            padding: 0.8rem 0; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-        }
-        .logo-wrapper img { height: 50px; width: auto; transition: transform 0.3s; }
-        .logo-wrapper img:hover { transform: scale(1.02); }
-
-        /* Stats Bar - Flutuante */
-        .stats-bar { 
-            position: sticky; top: 15px; z-index: 1000; 
-            background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px);
-            color: white; padding: 14px 28px; border-radius: 14px;
-            margin: 0 auto 30px; border: 1px solid rgba(255,255,255,0.1);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-        }
-
-        /* Grid e Cards */
-        .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px; }
-        .page-card { 
-            border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; background: white; 
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .page-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-color: var(--primary); }
-        canvas { width: 100%; height: auto; border-radius: 6px; border: 1px solid #f1f5f9; }
-
-        /* Form Controls */
-        .form-control, .form-select { border-radius: 8px; border: 1px solid #cbd5e1; padding: 0.6rem; font-size: 0.85rem; transition: border 0.2s; }
-        .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1); }
-        
-        .btn-success { background: var(--primary); border: none; border-radius: 8px; font-weight: 700; padding: 0.7rem 1.8rem; letter-spacing: 0.5px; }
-        .btn-success:hover { background: var(--primary-hover); }
-
-        /* Overlay e Skeletons */
-        #progressOverlay { 
-            display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98); 
-            z-index: 9999; color: white; flex-direction: column; justify-content: center; align-items: center; 
-        }
-        @keyframes skeleton-glow { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
-        .skeleton-card { border-radius: 12px; padding: 16px; background: white; animation: skeleton-glow 1.5s infinite; border: 1px solid #e2e8f0; }
-        .skeleton-img { width: 100%; aspect-ratio: 3/4; background: var(--bg-skeleton); border-radius: 8px; }
-        .skeleton-text { height: 12px; width: 50%; background: var(--bg-skeleton); margin: 12px auto; border-radius: 4px; }
-    </style>
 </head>
 <body>
 
 <nav class="navbar mb-4">
-    <div class="container">
+    <div class="container text-center text-md-start">
         <a href="/" class="logo-wrapper">
             <img src="https://laurodefreitas.ba.gov.br/site/LogoLauro_Horizontal1.jpg" alt="Logo Lauro de Freitas">
         </a>
@@ -80,11 +22,10 @@
 
 <div id="progressOverlay">
     <div class="spinner-grow text-primary mb-4" role="status"></div>
-    <h3 id="statusText" class="fw-bold">Iniciando Otimização...</h3>
+    <h3 id="statusText" class="fw-bold">Processando...</h3>
     <div class="progress mt-3" style="width: 320px; height: 8px; border-radius: 10px; background: rgba(255,255,255,0.1);">
         <div id="progressBar" class="progress-bar bg-primary" role="progressbar" style="width: 0%"></div>
     </div>
-    <p class="text-white-50 mt-4 small">Processando camadas e comprimindo imagens...</p>
 </div>
 
 <div class="container pb-5">
@@ -100,182 +41,56 @@
                 <span class="fw-bold text-primary" id="estSize">0.00</span> <small>MB</small>
             </div>
         </div>
-        <div class="text-center h5 mb-0 fw-bold">
+        <div class="d-flex align-items-center gap-3">
             <span class="badge bg-primary rounded-pill">-<span id="reduction">0</span>%</span>
+            <button form="mainForm" type="submit" id="btnDownload" class="btn btn-success shadow-sm" disabled>OTIMIZAR AGORA</button>
         </div>
-        <button form="mainForm" type="submit" id="btnDownload" class="btn btn-success shadow-sm">OTIMIZAR AGORA</button>
     </div>
 
     <div class="card p-4 mb-4 border-0 shadow-sm" style="border-radius: 16px;">
         <div class="row align-items-center">
             <div class="col-lg-4">
-                <label class="form-label fw-bold small text-uppercase text-muted">1. Carregar Arquivo</label>
-                <input type="file" id="pdfInput" class="form-control" accept=".pdf">
-            </div>
-            <div class="col-lg-8 text-lg-end mt-4 mt-lg-0">
-                <label class="form-label fw-bold small text-uppercase text-muted d-block mb-2">2. Aplicar em todas as páginas</label>
-                <div class="btn-group shadow-sm">
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(1)">Padrão</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(2)">HQ</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(3)">150 DPI</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(4)">72 DPI</button>
-                    <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(5)">50 DPI</button>
-                    <button type="button" class="btn btn-dark btn-sm px-3" onclick="bulkApply(6)">OCR + Dividir</button>
+                <div class="drop-zone rounded-4 p-4 text-center" id="dropZone">
+                    <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="mb-2">
+                        <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <p class="mb-0 small fw-bold text-muted" id="dropText">Arraste o PDF aqui ou clique</p>
+                    <input type="file" id="pdfInput" class="d-none" accept=".pdf">
                 </div>
             </div>
+            <div class="col-lg-8 text-lg-end mt-4 mt-lg-0">
+    <label class="text-muted small d-block mb-1 fw-bold" style="letter-spacing: 1px; opacity: 0.6;">
+        CONFIGURAÇÃO GLOBAL
+    </label>
+    <p class="small text-muted mb-3">Selecione para aplicar o mesmo nível de compressão em todo o documento</p>
+
+    <div class="d-flex flex-wrap justify-content-lg-end gap-2">
+        <div class="btn-group shadow-sm" role="group" aria-label="Níveis de DPI">
+            <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(1)" title="Mantém alta fidelidade">Padrão</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(2)" title="Alta Qualidade">HQ</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(3)">150 DPI</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(4)">72 DPI</button>
+            <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(5)">50 DPI</button>
         </div>
+
+        <button type="button" class="btn btn-dark btn-sm px-4 shadow-sm fw-bold" onclick="bulkApply(6)" 
+                style="background: var(--dark); border-radius: 8px;">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="me-1">
+                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m-3-3h6"></path>
+            </svg>
+            OCR + DIVIDIR
+        </button>
+    </div>
+</div>
     </div>
 
     <form id="mainForm" method="post" enctype="multipart/form-data">
         <input type="file" name="pdf" id="hiddenFile" style="display:none">
         <input type="hidden" name="config_map" id="configMapInput">
-        <div id="previewArea" class="preview-grid">
-            </div>
+        <div id="previewArea" class="preview-grid"></div>
     </form>
 </div>
 
-<script>
-    const pdfjsLib = window['pdfjs-dist/build/pdf'];
-    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
-
-    const pdfInput = document.getElementById('pdfInput');
-    const previewArea = document.getElementById('previewArea');
-    let pageConfigs = {};
-    let originalSizeMB = 0;
-    let totalPages = 0;
-
-    pdfInput.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (!file || file.type !== "application/pdf") return;
-
-        const dt = new DataTransfer(); dt.items.add(file);
-        document.getElementById('hiddenFile').files = dt.files;
-
-        originalSizeMB = file.size / (1024 * 1024);
-        document.getElementById('origSize').innerText = originalSizeMB.toFixed(2);
-
-        const reader = new FileReader();
-        reader.onload = async function() {
-            const typedarray = new Uint8Array(this.result);
-            const pdf = await pdfjsLib.getDocument(typedarray).promise;
-            totalPages = pdf.numPages;
-            
-            previewArea.innerHTML = ""; 
-            pageConfigs = {}; 
-
-            for (let i = 0; i < totalPages; i++) {
-                const skeleton = document.createElement('div');
-                skeleton.className = "skeleton-card";
-                skeleton.id = `page-container-${i}`;
-                skeleton.innerHTML = `<div class="skeleton-img"></div><div class="skeleton-text"></div>`;
-                previewArea.appendChild(skeleton);
-                pageConfigs[i] = 3;
-            }
-
-            for (let i = 0; i < totalPages; i++) {
-                await renderThumbnail(pdf, i);
-            }
-            atualizarEstimativa();
-        };
-        reader.readAsArrayBuffer(file);
-    };
-
-    async function renderThumbnail(pdf, idx) {
-        const page = await pdf.getPage(idx + 1);
-        const viewport = page.getViewport({ scale: 0.3 });
-        const container = document.getElementById(`page-container-${idx}`);
-        
-        const canvas = document.createElement('canvas');
-        await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
-
-        container.className = "page-card";
-        container.innerHTML = `
-            <div class="canvas-wrapper mb-3"></div>
-            <div class="d-flex justify-content-between align-items-center mb-2">
-                <span class="badge bg-light text-dark border">Pág. ${idx + 1}</span>
-                <span class="small text-muted fw-bold" style="font-size:0.7rem">QUALIDADE:</span>
-            </div>
-            <select class="form-select form-select-sm" data-idx="${idx}" onchange="updatePage(${idx}, this.value)">
-                <option value="1">Padrão</option>
-                <option value="2">Leve (HQ)</option>
-                <option value="3" selected>Média (150dpi)</option>
-                <option value="4">Alta (72dpi)</option>
-                <option value="5">Muito Alta (50dpi)</option>
-                <option value="6" disabled>OCR (Camada Texto)</option>
-            </select>
-        `;
-        container.querySelector('.canvas-wrapper').appendChild(canvas);
-    }
-
-    function updatePage(idx, val) {
-        pageConfigs[idx] = parseInt(val);
-        atualizarEstimativa();
-    }
-
-    function bulkApply(val) {
-        document.querySelectorAll('.preview-grid select').forEach(s => {
-            s.value = val;
-            pageConfigs[s.dataset.idx] = parseInt(val);
-        });
-        atualizarEstimativa();
-    }
-
-    function atualizarEstimativa() {
-        let isOCR = Object.values(pageConfigs).includes(6);
-        document.getElementById('configMapInput').value = JSON.stringify(pageConfigs);
-
-        if (isOCR) {
-            document.getElementById('estSize').innerText = "--";
-            document.getElementById('reduction').innerText = "OCR";
-            return;
-        }
-
-        let fatorTotal = 0;
-        const pesoPag = originalSizeMB / totalPages;
-        Object.values(pageConfigs).forEach(v => {
-            if(v == 1) fatorTotal += pesoPag * 0.98;
-            if(v == 2) fatorTotal += pesoPag * 0.85;
-            if(v == 3) fatorTotal += pesoPag * 0.60;
-            if(v == 4) fatorTotal += pesoPag * 0.25;
-            if(v == 5) fatorTotal += pesoPag * 0.15;
-            if(v == 6) fatorTotal += pesoPag * 0.10;
-        });
-        document.getElementById('estSize').innerText = fatorTotal.toFixed(2);
-        document.getElementById('reduction').innerText = Math.max(0, ((1 - (fatorTotal / originalSizeMB)) * 100)).toFixed(0);
-    }
-
-    document.getElementById('mainForm').onsubmit = async (e) => {
-        e.preventDefault();
-        const overlay = document.getElementById('progressOverlay');
-        const progressBar = document.getElementById('progressBar');
-        const statusText = document.getElementById('statusText');
-        overlay.style.display = 'flex';
-        
-        try {
-            const formData = new FormData(e.target);
-            const response = await fetch('/processar', { method: 'POST', body: formData });
-            const data = await response.json();
-            if (data.task_id) {
-                const interval = setInterval(async () => {
-                    const res = await fetch(`/status/${data.task_id}`);
-                    const status = await res.json();
-                    const p = Math.round((status.current / status.total) * 100) || 0;
-                    progressBar.style.width = p + '%';
-                    statusText.innerText = status.status;
-                    if (status.status === "Concluído") {
-                        clearInterval(interval);
-                        window.location.href = data.download_url;
-                        setTimeout(() => {
-                            overlay.style.display = 'none';
-                            progressBar.style.width = '0%';
-                        }, 1000);
-                    }
-                }, 800);
-            }
-        } catch (err) {
-            overlay.style.display = 'none';
-        }
-    };
-</script>
+<script type="text/javascript" src="static/js/scripts.js"></script>
 </body>
 </html>
