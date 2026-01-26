@@ -1,22 +1,24 @@
 import os
-import pathlib
-import shutil
 import uuid
 import json
+import logging
+import traceback
 from flask import Flask, render_template, request, send_file, jsonify
+from PyPDF2 import PdfReader
 
 from engines.execute_gs import processar_pdf_custom
-
-
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 app.static_folder = 'templates'
 
+# Configuração de Log básica
+logging.basicConfig(level=logging.INFO)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Armazena o progresso: { task_id: { "current": 0, "total": 100 } }
+# Armazena o progresso: { task_id: { "current": 0, "total": 100, "status": "...", "logs": "" } }
 progress_db = {}
+
 @app.route('/processar', methods=['POST'])
 def processar():
     if 'pdf' not in request.files:
@@ -26,98 +28,108 @@ def processar():
     config_map = json.loads(request.form.get('config_map', '{}'))
     task_id = str(uuid.uuid4())
     
-    # Define caminhos
-    input_path = os.path.join(UPLOAD_FOLDER, f"{task_id}_{file.filename}")
-    file.save(input_path) # Salva uma única vez aqui
+    # Define caminhos e salva arquivo
+    input_filename = f"{task_id}_{file.filename}"
+    input_path = os.path.join(UPLOAD_FOLDER, input_filename)
+    file.save(input_path)
 
-    is_ocr_task = any(v == 6 for v in config_map.values())
+    # Inicializa estrutura de dados da Task
+    progress_db[task_id] = {
+        "current": 0, 
+        "total": len(config_map) if config_map else 1, 
+        "status": "Iniciando conexão...", 
+        "logs": f"[{task_id[-6:]}] Arquivo recebido: {file.filename}\n"
+    }
 
-    if is_ocr_task:
-        progress_db[task_id] = {"current": 1, "total": 4, "status": "Iniciando OCR (Processo Lento)..."}
-        try:
-            from engines.force_ocr import ocr, split_volumes
-            import logging
-            ocr_path = os.path.join(UPLOAD_FOLDER, f"ocr_{task_id}.pdf")
-            ocr(input_path, ocr_path)
-            logging.warning(f"OCR gerado: {ocr_path} - existe? {os.path.exists(ocr_path)} tamanho: {os.path.getsize(ocr_path) if os.path.exists(ocr_path) else 0}")
+    def add_log(msg):
+        progress_db[task_id]["logs"] += f"[{task_id[-6:]}] {msg}\n"
+        logging.info(msg)
 
-            progress_db[task_id] = {"current": 2, "total": 4, "status": "Dividindo em volumes..."}
-            out_dir = pathlib.Path(UPLOAD_FOLDER) / task_id
-            split_volumes(pathlib.Path(ocr_path), out_dir, 5.0)
+    # Identifica se há páginas marcadas para OCR (Nível 6)
+    ocr_pages = [int(idx) + 1 for idx, v in config_map.items() if int(v) == 6]
+    
+    try:
+        if ocr_pages:
+            from engines.force_ocr import ocr
+            ocr_filename = f"ocr_{task_id}.pdf"
+            ocr_path = os.path.join(UPLOAD_FOLDER, ocr_filename)
+            
+            reader = PdfReader(input_path)
+            total_pages = len(reader.pages)
+            
+            add_log(f"Iniciando motor OCR para {len(ocr_pages)} páginas.")
+            progress_db[task_id].update({"total": 1, "status": "Executando OCR e Otimização JBIG2..."})
 
-            # Checa arquivos gerados
-            pdfs_gerados = list(out_dir.glob('*.pdf'))
-            logging.warning(f"PDFs divididos gerados em {out_dir}: {[str(p) for p in pdfs_gerados]}")
-            if not pdfs_gerados:
-                return jsonify({"error": "Nenhum PDF foi gerado na divisão. Verifique o split_volumes."}), 500
+            if len(ocr_pages) == total_pages:
+                ocr(input_path, ocr_path)
+            else:
+                pages_str = ",".join(str(p) for p in sorted(ocr_pages))
+                ocr(input_path, ocr_path, pages=pages_str)
 
-            progress_db[task_id] = {"current": 3, "total": 4, "status": "Criando pacote ZIP..."}
-            zip_name = f"volumes_{task_id}"
-            # O shutil.make_archive adiciona o .zip automaticamente
-            zip_path = shutil.make_archive(os.path.join(UPLOAD_FOLDER, zip_name), 'zip', out_dir)
-            logging.warning(f"ZIP gerado: {zip_path} - existe? {os.path.exists(zip_path)} tamanho: {os.path.getsize(zip_path) if os.path.exists(zip_path) else 0}")
+            add_log("OCR concluído com sucesso.")
+            progress_db[task_id].update({"current": 1, "status": "Concluído"})
+            return jsonify({"task_id": task_id, "download_url": f"/download/{task_id}/{ocr_filename}"})
 
-            progress_db[task_id] = {"current": 4, "total": 4, "status": "Concluído"}
-            return jsonify({"task_id": task_id, "download_url": f"/download_zip/{zip_name}.zip"})
+        else:
+            output_filename = f"opt_{task_id}_{file.filename}"
+            output_path = os.path.join(UPLOAD_FOLDER, output_filename)
 
-        except Exception as e:
-            import traceback
-            logging.error(traceback.format_exc())
-            return jsonify({"error": f"Erro no OCR: {str(e)}"}), 500
-    else:
-        output_path = os.path.join(UPLOAD_FOLDER, f"opt_{task_id}_{file.filename}")
-        progress_db[task_id] = {"current": 0, "total": len(config_map), "status": "Iniciando..."}
+            def update_progress(page_index):
+                msg = f"Página {page_index + 1} de {len(config_map)} processada."
+                progress_db[task_id]["current"] = page_index + 1
+                progress_db[task_id]["status"] = f"Otimizando: {page_index + 1}/{len(config_map)}"
+                add_log(msg)
 
-        def update_progress(page_index):
-            progress_db[task_id]["current"] = page_index + 1
-            progress_db[task_id]["status"] = f"Comprimindo página {page_index + 1}..."
-
-        try:
+            add_log(f"Iniciando compressão Ghostscript: {len(config_map)} páginas.")
             processar_pdf_custom(input_path, output_path, config_map, update_progress)
+            
+            add_log("Otimização concluída.")
             progress_db[task_id]["status"] = "Concluído"
-            return jsonify({"task_id": task_id, "download_url": f"/download/{task_id}/{file.filename}"})
-        except Exception as e:
-            return jsonify({"error": f"Erro na compressão: {str(e)}"}), 500
+            return jsonify({"task_id": task_id, "download_url": f"/download/{task_id}/{output_filename}"})
 
-
+    except Exception as e:
+        error_trace = traceback.format_exc()
+        add_log(f"ERRO: {str(e)}")
+        logging.error(error_trace)
+        progress_db[task_id]["status"] = "Falha no processamento"
+        return jsonify({"error": str(e), "logs": error_trace}), 500
 
 @app.route('/status/<task_id>')
 def status(task_id):
-    return jsonify(progress_db.get(task_id, {"status": "Não encontrado"}))
+    return jsonify(progress_db.get(task_id, {
+        "status": "Não encontrado", 
+        "current": 0, "total": 1, 
+        "logs": "ID de tarefa inválido.\n"
+    }))
 
 @app.route('/download/<task_id>/<filename>')
 def download(task_id, filename):
-    # Busca o arquivo otimizado pelo nome correto
-    opt_name = f"opt_{task_id}_{filename}"
-    path = os.path.join(UPLOAD_FOLDER, opt_name)
+    path = os.path.join(UPLOAD_FOLDER, filename)
+    
     if not os.path.exists(path):
-        return "Arquivo não encontrado", 404
-    return send_file(path, as_attachment=True)
+        # Tenta localizar por padrões conhecidos se o link direto falhar
+        possibilidades = [
+            os.path.join(UPLOAD_FOLDER, f"opt_{task_id}_{filename}"),
+            os.path.join(UPLOAD_FOLDER, f"ocr_{task_id}.pdf")
+        ]
+        for p in possibilidades:
+            if os.path.exists(p):
+                path = p
+                break
 
-# Endpoint para download do zip OCR+Dividir
-@app.route('/download_zip/<zipname>')
-def download_zip(zipname):
-    path = os.path.join(UPLOAD_FOLDER, zipname)
-    if not os.path.exists(path):
-        return "Arquivo ZIP não encontrado", 404
-    return send_file(path, as_attachment=True)
-
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    if request.method == 'POST':
-        file = request.files['pdf']
-        # O mapa de páginas vem como uma string JSON do campo hidden
-        config_map_raw = request.form.get('config_map', '{}')
-        config_map = json.loads(config_map_raw)
+    if os.path.exists(path):
+        # Nome limpo para o usuário (remove o UUID)
+        clean_name = filename.split('_', 1)[-1] if '_' in filename else filename
+        if "ocr_" in filename: clean_name = "documento_pesquisavel.pdf"
         
-        input_path = os.path.join(UPLOAD_FOLDER, file.filename)
-        output_path = os.path.join(UPLOAD_FOLDER, "otimizado_" + file.filename)
-        file.save(input_path)
+        return send_file(path, as_attachment=True, download_name=clean_name)
+            
+    return "Arquivo não encontrado.", 404
 
-        processar_pdf_custom(input_path, output_path, config_map)
-        return send_file(output_path, as_attachment=True)
-
+@app.route('/')
+def index():
     return render_template('index.html')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # threaded=True permite que o polling ocorra enquanto o motor processa o PDF
+    app.run(debug=True, port=5000, threaded=True)
