@@ -226,6 +226,16 @@ function iniciarPolling(data) {
     eventSource.onerror = () => eventSource.close();
 }
 
+btnClear.onclick = () => {
+    pdfInput.value = "";
+    previewArea.innerHTML = "";
+    dropText.innerText = "Arraste o PDF aqui ou clique";
+    document.getElementById('origSize').innerText = "0.00";
+    document.getElementById('estSize').innerText = "0.00";
+    document.getElementById('reduction').innerText = "0";
+    btnDownload.disabled = true;
+}
+
 function finalizarProcesso(url) {
     isDownloading = true; //
     document.getElementById('statusText').innerText = "Pronto! Iniciando download...";
