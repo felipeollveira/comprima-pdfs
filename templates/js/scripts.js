@@ -213,8 +213,12 @@ function iniciarPolling(data) {
         // 5. Finalização ou Erro
         if (payload.status === "Concluído") {
             eventSource.close();
-            // Usa o nome do arquivo final enviado pelo backend
-            const finalUrl = `/download/${data.task_id}/${payload.filename || 'resultado.pdf'}`;
+            let finalUrl;
+            if (payload.filename === "zip") {
+                finalUrl = `/download_zip/${data.task_id}`;
+            } else {
+                finalUrl = `/download/${data.task_id}/${payload.filename || 'resultado.pdf'}`;
+            }
             finalizarProcesso(finalUrl);
         } else if (payload.status === "Falha no processamento") {
             eventSource.close();
@@ -227,13 +231,16 @@ function iniciarPolling(data) {
 }
 
 btnClear.onclick = () => {
-    pdfInput.value = "";
-    previewArea.innerHTML = "";
-    dropText.innerText = "Arraste o PDF aqui ou clique";
-    document.getElementById('origSize').innerText = "0.00";
-    document.getElementById('estSize').innerText = "0.00";
-    document.getElementById('reduction').innerText = "0";
-    btnDownload.disabled = true;
+    if (dropText.innerText == "Arraste o PDF aqui ou clique") return;
+    if (confirm("Limpar o formulário irá remover o arquivo carregado e todas as configurações feitas. Tem certeza que deseja continuar?")) {
+        pdfInput.value = "";
+        previewArea.innerHTML = "";
+        dropText.innerText = "Arraste o PDF aqui ou clique";
+        document.getElementById('origSize').innerText = "0.00";
+        document.getElementById('estSize').innerText = "0.00";
+        document.getElementById('reduction').innerText = "0";
+        btnDownload.disabled = true;
+    }
 }
 
 function finalizarProcesso(url) {
