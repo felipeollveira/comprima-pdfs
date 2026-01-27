@@ -65,10 +65,12 @@ def processar():
                         pathlib.Path(UPLOAD_FOLDER),
                         MAX_MB
                     )
+                    
                     add_log("Páginas processadas com sucesso.")
                     # Verifica se existem arquivos divididos
                     from glob import glob
                     dividir_files = glob(os.path.join(UPLOAD_FOLDER, f"ocr_{task_id}_*.pdf"))
+                    
                     if dividir_files:
                         if len(dividir_files) > 1:
                             # Gera o ZIP e registra o nome
