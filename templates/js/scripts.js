@@ -210,6 +210,19 @@ function finalizarProcesso(url, nome) {
     }, 500);
 }
 
+btnClear.onclick = () => {
+    if (dropText.innerText == "Arraste o PDF aqui ou clique") return;
+    if (confirm("Limpar o formulário irá remover o arquivo carregado e todas as configurações feitas. Tem certeza que deseja continuar?")) {
+        pdfInput.value = "";
+        previewArea.innerHTML = "";
+        dropText.innerText = "Arraste o PDF aqui ou clique";
+        document.getElementById('origSize').innerText = "0.00";
+        document.getElementById('estSize').innerText = "0.00";
+        document.getElementById('reduction').innerText = "0";
+        btnDownload.disabled = true;
+    }
+};
+
 function iniciarSSE(taskId) {
     const progressBar = document.getElementById('progressBar');
     const statusText = document.getElementById('statusText');
