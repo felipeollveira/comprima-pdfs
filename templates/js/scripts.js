@@ -79,14 +79,21 @@ async function renderThumbnail(pdf, idx) {
 
     container.className = "page-card";
     container.innerHTML = `
-        <div class="canvas-wrapper mb-3"></div>
+        <div class="canvas-wrapper mb-3 relative">
+        <span class="fullscreen-icon" title="Visualizar em tela cheia" onclick="openFullscreen(this.parentElement)">
+          
+        </span>
+        </div>
+
         <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="badge bg-light text-dark border">Pág. ${idx + 1}</span>
+
         </div>
         <select class="form-select form-select-sm" data-idx="${idx}" onchange="updatePage(${idx}, this.value)">
             <option value="1">Padrão</option><option value="2">Leve (HQ)</option>
             <option value="3" selected>Média (150dpi)</option><option value="4">Alta (72dpi)</option>
-            <option value="5">Muito Alta (50dpi)</option><option value="6">OCR + Dividir</option>
+            <option value="5">Muito Alta (50dpi)</option>
+            <option value="6" disabled>OCR + Dividir</option>
         </select>`;
     container.querySelector('.canvas-wrapper').appendChild(canvas);
 }
@@ -133,8 +140,8 @@ document.getElementById('mainForm').onsubmit = function(e) {
     const logConsole = document.getElementById('logConsole');
 
     overlay.style.display = 'flex';
-    logConsole.innerText = "> Iniciando transferência...";
-    
+    logConsole.innerHTML = ""; // Limpa o log para receber apenas mensagens do SSE
+
     const xhr = new XMLHttpRequest();
     const formData = new FormData(e.target);
 
@@ -152,6 +159,7 @@ document.getElementById('mainForm').onsubmit = function(e) {
         if (xhr.status === 200) {
             const data = JSON.parse(xhr.responseText);
             if (data.task_id) {
+                statusText.innerText = "Processando Documento";
                 iniciarPolling(data);
             } else if (data.error) {
                 statusText.innerText = "Erro: " + data.error;
@@ -167,67 +175,67 @@ document.getElementById('mainForm').onsubmit = function(e) {
 
 // No início do seu <script>, defina esta variável global
 let isDownloading = false;
-
 function iniciarPolling(data) {
-    let lastLogContent = '';
     const overlay = document.getElementById('progressOverlay');
     const progressBar = document.getElementById('progressBar');
     const statusText = document.getElementById('statusText');
     const logConsole = document.getElementById('logConsole');
     
-    // Força o reset visual ao iniciar o monitoramento
-    isDownloading = false; 
+    // 1. Abre a conexão única com o servidor
+    const eventSource = new EventSource(`/progress/${data.task_id}`);
+    console.log(eventSource);
 
-    const interval = setInterval(async () => {
-        try {
-            // Adicionamos um timestamp para evitar cache do navegador no status
-            const res = await fetch(`/status/${data.task_id}?t=${Date.now()}`);
-            const status = await res.json();
-            
-            // 1. Atualização da Barra (Escalando de 20% a 100%)
-            if (status.total > 0) {
-                const serverPercent = (status.current / status.total) || 0;
-                const totalProgress = 20 + (serverPercent * 80);
-                progressBar.style.width = totalProgress + '%';
-                progressBar.innerText = Math.round(totalProgress) + '%';
-            }
+    eventSource.onmessage = function(event) {
+        const payload = JSON.parse(event.data);
 
-            // 2. Injeção de Logs Dinâmicos
-            if (status.logs && status.logs !== lastLogContent) {
-                logConsole.innerText = status.logs;
-                logConsole.scrollTop = logConsole.scrollHeight;
-                lastLogContent = status.logs;
-            }
+        // 2. Atualiza a barra de progresso (80% da barra é o processamento)
+        const progressoCalculado = 20 + (payload.percent * 0.8);
+        progressBar.style.width = progressoCalculado + '%';
+        progressBar.innerText = Math.round(progressoCalculado) + '%';
 
-            if (status.status) {
-                statusText.innerText = status.status;
-            }
-
-            // 3. Finalização
-            if (status.status === "Concluído") {
-                clearInterval(interval);
-                isDownloading = true; // Libera o bloqueio do window.onbeforeunload
-                
-                statusText.innerText = 'Processamento concluído! Baixando...';
-                progressBar.style.width = '100%';
-
-                // Pequeno delay para garantir que o estado 'isDownloading' seja registrado
-                setTimeout(() => {
-                    window.location.href = data.download_url;
-                    
-                    // Fecha o overlay após o disparo do download
-                    setTimeout(() => { 
-                        overlay.style.display = 'none'; 
-                        isDownloading = false;
-                        progressBar.style.width = '0%';
-                    }, 2000);
-                }, 100);
-            }
-
-        } catch (err) {
-            console.error("Erro no polling:", err);
+        // 3. Atualiza o texto de status principal
+        if (payload.status) {
+            statusText.innerText = payload.status;
         }
-    }, 1000);
+
+        // 4. Adiciona as mensagens no console de logs
+        if (payload.logs && payload.logs.length > 0) {
+            payload.logs.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = 'text-success small mb-1';
+                div.innerHTML = `<span style="color: #666;">[${new Date().toLocaleTimeString()}]</span> ${msg}`;
+                logConsole.appendChild(div);
+            });
+            // Auto-scroll para o final do log
+            logConsole.scrollTop = logConsole.scrollHeight;
+        }
+
+        // 5. Finalização ou Erro
+        if (payload.status === "Concluído") {
+            eventSource.close();
+            // Usa o nome do arquivo final enviado pelo backend
+            const finalUrl = `/download/${data.task_id}/${payload.filename || 'resultado.pdf'}`;
+            finalizarProcesso(finalUrl);
+        } else if (payload.status === "Falha no processamento") {
+            eventSource.close();
+            statusText.innerText = "Erro no servidor";
+            progressBar.classList.add('bg-danger');
+        }
+    };
+
+    eventSource.onerror = () => eventSource.close();
+}
+
+function finalizarProcesso(url) {
+    isDownloading = true; //
+    document.getElementById('statusText').innerText = "Pronto! Iniciando download...";
+    setTimeout(() => {
+        window.location.href = url; //
+        setTimeout(() => {
+            document.getElementById('progressOverlay').style.display = 'none'; //
+            isDownloading = false;
+        }, 2000);
+    }, 500);
 }
 
 // Segurança contra fechamento acidental corrigida

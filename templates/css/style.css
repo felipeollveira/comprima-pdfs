@@ -12,6 +12,28 @@
             color: #334155;
             margin: 0;
         }
+
+        #logConsole {
+    background: #0d1117 !important; /* Cor estilo VS Code/GitHub */
+    border: 1px solid #30363d !important;
+    scrollbar-width: thin;
+    scrollbar-color: #30363d transparent;
+    transition: all 0.3s ease;
+}
+
+#logConsole::-webkit-scrollbar {
+    width: 6px;
+}
+
+#logConsole::-webkit-scrollbar-thumb {
+    background-color: #30363d;
+    border-radius: 10px;
+}
+
+/* Efeito de digitação suave no status */
+#statusText {
+    transition: opacity 0.2s ease-in-out;
+}
         @media (max-width: 991px) {
             .btn-group {
                 width: 100%;
@@ -39,6 +61,14 @@
             margin: 0 auto 30px; border: 1px solid rgba(255,255,255,0.1);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
+
+        .fullscreen-icon {
+            position: absolute; top: 8px; right: 12px; 
+            background: rgba(255, 255, 255, 0.8); 
+            border-radius: 6px; padding: 6px; 
+            cursor: pointer; 
+            transition: background 0.3s;
+        }   
 
         .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px; margin-top: 4%; }
 
