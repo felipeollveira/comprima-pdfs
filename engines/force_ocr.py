@@ -83,7 +83,9 @@ def ocr(input_pdf, out_pdf, pages=None):
 def split_volumes(pdf_path, out_dir, max_mb):
     logging.info(f"Iniciando divisão em volumes: {pdf_path} -> {out_dir} (max_mb={max_mb})")
     pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
+    max_mb = min(float(max_mb), 5.0) 
     max_bytes = int(max_mb * 1024 * 1024)
+    
     try:
         with pikepdf.open(pdf_path) as pdf:
             total = len(pdf.pages)

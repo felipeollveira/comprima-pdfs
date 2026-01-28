@@ -73,7 +73,7 @@ pdfInput.onchange = async (e) => {
 // --- RENDERIZAÇÃO E ESTIMATIVA ---
 async function renderThumbnail(pdf, idx) {
     const page = await pdf.getPage(idx + 1);
-    const viewport = page.getViewport({ scale: 0.3 });
+    const viewport = page.getViewport({ scale: 0.6 });
     const container = document.getElementById(`page-container-${idx}`);
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
@@ -85,7 +85,7 @@ async function renderThumbnail(pdf, idx) {
 
     container.className = "page-card";
     container.innerHTML = `
-        <div class="canvas-wrapper mb-3 relative"></div>
+        <div class="canvas-wrapper mb-3"></div>
         <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="badge bg-light text-dark border">Pág. ${idx + 1}</span>
         </div>
@@ -95,7 +95,7 @@ async function renderThumbnail(pdf, idx) {
             <option value="3" selected>Média (150dpi)</option>
             <option value="4">Alta (72dpi)</option>
             <option value="5">Muito Alta (50dpi)</option>
-            <option value="6">OCR + Dividir</option>
+            <option value="6" disabled>OCR + Dividir</option>
         </select>`;
     container.querySelector('.canvas-wrapper').appendChild(canvas);
 }
