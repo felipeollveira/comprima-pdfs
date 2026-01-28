@@ -49,7 +49,7 @@ pdfInput.onchange = async (e) => {
         if (resp.ok) {
             const data = await resp.json();
             if (data.assinatura) {
-                alertDiv.textContent = 'Atenção: Este PDF possui uma assinatura digital. Processos de OCR podem não funcionar corretamente.';
+                alertDiv.textContent = 'Atenção: Este PDF possui uma assinatura digital. Processos de compressão ou manipulação podem invalidar a assinatura.';
                 alertDiv.classList.remove('d-none');
             }
         }
@@ -272,7 +272,7 @@ function iniciarSSE(taskId) {
         if (data.assinatura && !alertAssinaturaMostrado) {
             alertAssinaturaMostrado = true;
             const alertDiv = document.getElementById('alertAssinatura');
-            alertDiv.textContent = 'Atenção: Este PDF possui uma assinatura digital. Processos de OCR podem invalidar a assinatura ou não funcionar corretamente.';
+            alertDiv.textContent = 'Atenção: Este PDF possui uma assinatura digital. Processos de compressão ou manipulação podem invalidar a assinatura.';
             alertDiv.classList.remove('d-none');
         }
         if (!data.assinatura && alertAssinaturaMostrado) {
