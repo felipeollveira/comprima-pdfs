@@ -29,6 +29,13 @@ def executar_gs(input_path, output_path, nivel_idx):
         '-dMonoImageDownsampleType=/Bicubic'
     ]
 
+    # if int(nivel_idx) == 1:
+    #     cmd.extend([
+    #        ' -dNoOutputCompression',
+    #        'dColorImageDownsampleType=None',
+    #        'dGrayImageDownsampleType=None',
+    #     ])
+
     if int(nivel_idx) == 5:
         cmd.extend([
             '-dColorImageResolution=50',

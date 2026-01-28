@@ -1,21 +1,20 @@
-
-        :root { 
-            --primary: #10b981; 
-            --primary-hover: #059669; 
-            --dark: #0f172a; 
+  :root {
+            --primary: #10b981;
+            --primary-hover: #059669;
+            --dark: #0f172a;
             --bg-skeleton: #f1f5f9;
         }
-
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #f8fafc; 
+ 
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
             color: #334155;
             margin: 0;
         }
         canvas{
             transform: translateY(-70px);
         }
-
+ 
         .canvas-wrapper {
             height: 100px;
             width: 100%;
@@ -25,13 +24,13 @@
             border-radius: 8px;
             background: white;
         }
-
+ 
         #qualityPreview{
             cursor: pointer;
             padding: 6px;
             padding-right: 0px;
         }
-
+ 
         #logConsole {
     background: #0d1117 !important; /* Cor estilo VS Code/GitHub */
     border: 1px solid #30363d !important;
@@ -39,16 +38,16 @@
     scrollbar-color: #30363d transparent;
     transition: all 0.3s ease;
 }
-
+ 
 #logConsole::-webkit-scrollbar {
     width: 6px;
 }
-
+ 
 #logConsole::-webkit-scrollbar-thumb {
     background-color: #30363d;
     border-radius: 10px;
 }
-
+ 
 /* Efeito de digitação suave no status */
 #statusText {
     transition: opacity 0.2s ease-in-out;
@@ -65,44 +64,44 @@
                 text-align: center !important;
             }
         }
-        .navbar { 
-            background: white; 
-            border-bottom: 1px solid #e2e8f0; 
-            padding: 0.8rem 0; 
+        .navbar {
+            background: white;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 0.8rem 0;
             box-shadow: 0 2px 4px rgba(0,0,0,0.02);
         }
         .logo-wrapper img { height: 50px; width: auto; transition: transform 0.3s; }
-
-        .stats-bar { 
-            position: sticky; top: 15px; z-index: 1000; 
+ 
+        .stats-bar {
+            position: sticky; top: 15px; z-index: 1000;
             background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(12px);
             color: white; padding: 14px 28px; border-radius: 14px;
             margin: 0 auto 30px; border: 1px solid rgba(255,255,255,0.1);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
         }
-
+ 
         .fullscreen-icon {
-            position: absolute; top: 8px; right: 12px; 
-            background: rgba(255, 255, 255, 0.8); 
-            border-radius: 6px; padding: 6px; 
-            cursor: pointer; 
+            position: absolute; top: 8px; right: 12px;
+            background: rgba(255, 255, 255, 0.8);
+            border-radius: 6px; padding: 6px;
+            cursor: pointer;
             transition: background 0.3s;
-        }   
-
+        }  
+ 
         .preview-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 24px; margin-top: 4%; }
-
-        .page-card { 
-            border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; background: white; 
+ 
+        .page-card {
+            border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; background: white;
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .page-card:hover { transform: translateY(-4px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border-color: var(--primary); }
         canvas { width: 100%; height: auto; border-radius: 6px; border: 1px solid #f1f5f9; }
-
+ 
         .form-control, .form-select { border-radius: 8px; border: 1px solid #cbd5e1; padding: 0.6rem; font-size: 0.85rem; }
-        
+       
         .btn-success { background: var(--primary); border: none; border-radius: 8px; font-weight: 700; padding: 0.7rem 1.8rem; letter-spacing: 0.5px; }
         .btn-success:disabled { background: #64748b; opacity: 0.6; cursor: not-allowed; }
-
+ 
         .drop-zone {
             border: 2px dashed #e2e8f0;
             transition: all 0.3s ease;
@@ -121,11 +120,99 @@
         }
         .drop-zone svg { color: #94a3b8; transition: color 0.3s; }
         .drop-zone.drag-over svg { color: var(--primary); }
-
-        #progressOverlay { 
-            display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98); 
-            z-index: 9999; color: white; flex-direction: column; justify-content: center; align-items: center; 
+ 
+        #progressOverlay {
+            display: none; position: fixed; inset: 0; background: rgba(15, 23, 42, 0.98);
+            z-index: 9999; color: white; flex-direction: column; justify-content: center; align-items: center;
         }
         @keyframes skeleton-glow { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.8; } }
         .skeleton-card { border-radius: 12px; padding: 16px; background: white; animation: skeleton-glow 1.5s infinite; border: 1px solid #e2e8f0; }
         .skeleton-img { width: 100%; aspect-ratio: 3/4; background: var(--bg-skeleton); border-radius: 8px; }
+       
+/* LUPA  */
+.pdf-modal.hidden { display: none; }
+ 
+.pdf-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+ 
+.pdf-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+}
+ 
+.pdf-modal__panel {
+  position: relative;
+  width: min(1100px, 96vw);
+  height: min(90vh, 900px);
+  margin: 4vh auto;
+  background: #0f172a;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  display: flex;
+  flex-direction: column;
+}
+ 
+.pdf-modal__header {
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+}
+ 
+.pdf-modal__title {
+  color: #e5e7eb;
+  font-weight: 600;
+  font-size: 14px;
+}
+ 
+.pdf-modal__actions { display: flex; gap: 8px; }
+ 
+.btn-mini {
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+  color: #e5e7eb;
+  cursor: pointer;
+}
+ 
+.btn-mini:hover { background: rgba(255,255,255,.10); }
+ 
+.pdf-modal__body {
+  flex: 1;
+  overflow: auto;
+  padding: 14px;
+}
+ 
+.pdf-modal__canvasWrap {
+  display: flex;
+  justify-content: center;
+}
+ 
+#pdfPreviewCanvas {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+ 
+/* botão da lupa em cada página */
+.preview-zoom-btn {
+  border: 0;
+  background: transparent;
+  padding: 4px 6px;
+  border-radius: 10px;
+  color: inherit;
+  display: inline-flex;
+  align-items: center;
+}
+.preview-zoom-btn:hover {
+  background: rgba(0,0,0,.06);
+}
