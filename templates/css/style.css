@@ -26,6 +26,12 @@
             background: white;
         }
 
+        #qualityPreview{
+            cursor: pointer;
+            padding: 6px;
+            padding-right: 0px;
+        }
+
         #logConsole {
     background: #0d1117 !important; /* Cor estilo VS Code/GitHub */
     border: 1px solid #30363d !important;

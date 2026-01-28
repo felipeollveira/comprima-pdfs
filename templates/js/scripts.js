@@ -88,6 +88,12 @@ async function renderThumbnail(pdf, idx) {
         <div class="canvas-wrapper mb-3"></div>
         <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="badge bg-light text-dark border">Pág. ${idx + 1}</span>
+
+            <span id="qualityPreview" onclick="alert('O preview da qualidade selecionada será implementado em breve.')" title="Preview da qualidade selecionada">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="me-1">
+                    <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m-3-3h6"></path>
+                </svg>
+            </span>
         </div>
         <select class="form-select form-select-sm" data-idx="${idx}" onchange="updatePage(${idx}, this.value)">
             <option value="1">Padrão</option>
