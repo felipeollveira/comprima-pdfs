@@ -237,8 +237,14 @@ btnClear.onclick = () => {
     if (dropText.innerText == "Arraste o PDF aqui ou clique") return;
     if (confirm("Limpar o formulário irá remover o arquivo carregado e todas as configurações feitas. Tem certeza que deseja continuar?")) {
         pdfInput.value = "";
+        alertAssinatura.classList.add('d-none');
         previewArea.innerHTML = "";
         dropText.innerText = "Arraste o PDF aqui ou clique";
+        alertAssinatura.classList.add('d-none');
+        alertAssinatura.textContent = '';
+        pageConfigs = {};
+        originalSizeMB = 0;
+        totalPages = 0;
         document.getElementById('origSize').innerText = "0.00";
         document.getElementById('estSize').innerText = "0.00";
         document.getElementById('reduction').innerText = "0";
