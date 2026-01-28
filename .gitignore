@@ -8,6 +8,7 @@ __pycache__/
 
 # uploads
 uploads/
+*.pdf
 
 # Distribution / packaging
 .Python
