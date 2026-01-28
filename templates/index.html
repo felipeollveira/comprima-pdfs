@@ -32,7 +32,7 @@
         <div class="text-success small mb-1">> Aguardando logs do servidor...</div>
     </div>
     
-    <p class="text-white-50 mt-3 small">Otimizando via Ghostscript & OCR</p>
+    <p class="text-white-50 mt-3 small" id="quick-messages">Otimizando PDF e OCR</p>
 </div>
 
 <div class="container pb-5">
@@ -63,6 +63,7 @@
                         <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                     </svg>
                     <p class="mb-0 small fw-bold text-muted" id="dropText">Arraste o PDF aqui ou clique</p>
+                    <div id="alertAssinatura" class="alert alert-warning mt-3 d-none"></div>
                     <input type="file" id="pdfInput" class="d-none" accept=".pdf">
                 </div>
             </div>

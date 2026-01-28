@@ -38,6 +38,25 @@ pdfInput.onchange = async (e) => {
     const file = e.target.files[0];
     if (!file || file.type !== "application/pdf") return;
 
+    // Verifica assinatura digital imediatamente
+    const alertDiv = document.getElementById('alertAssinatura');
+    alertDiv.classList.add('d-none');
+    alertDiv.textContent = '';
+    try {
+        const formData = new FormData();
+        formData.append('pdf', file);
+        const resp = await fetch('/verificar-assinatura', { method: 'POST', body: formData });
+        if (resp.ok) {
+            const data = await resp.json();
+            if (data.assinatura) {
+                alertDiv.textContent = 'Atenção: Este PDF possui uma assinatura digital. Processos de OCR podem não funcionar corretamente.';
+                alertDiv.classList.remove('d-none');
+            }
+        }
+    } catch (err) {
+        // Silencioso, não exibe erro ao usuário
+    }
+
     previewArea.innerHTML = "";
     pageConfigs = {};
 
@@ -54,16 +73,14 @@ pdfInput.onchange = async (e) => {
         const typedarray = new Uint8Array(this.result);
         const pdf = await pdfjsLib.getDocument(typedarray).promise;
         totalPages = pdf.numPages;
-        
         for (let i = 0; i < totalPages; i++) {
             const skeleton = document.createElement('div');
             skeleton.className = "skeleton-card";
             skeleton.id = `page-container-${i}`;
-            skeleton.innerHTML = `<div class="skeleton-img"></div><div style="height:12px;width:50%;background:#f1f5f9;margin:12px auto;border-radius:4px;"></div>`;
+            skeleton.innerHTML = `<div class=\"skeleton-img\"></div><div style=\"height:12px;width:50%;background:#f1f5f9;margin:12px auto;border-radius:4px;\"></div>`;
             previewArea.appendChild(skeleton);
             pageConfigs[i] = 3;
         }
-
         for (let i = 0; i < totalPages; i++) { await renderThumbnail(pdf, i); }
         atualizarEstimativa();
     };
@@ -89,7 +106,7 @@ async function renderThumbnail(pdf, idx) {
         <div class="d-flex justify-content-between align-items-center mb-2">
             <span class="badge bg-light text-dark border">Pág. ${idx + 1}</span>
 
-            <span id="qualityPreview" onclick="alert('O preview da qualidade selecionada será implementado em breve.')" title="Preview da qualidade selecionada">
+            <span id="qualityPreview" onclick="alert('O preview do PDF será implementado em breve.')" title="Preview da qualidade selecionada">
                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="me-1">
                     <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m-3-3h6"></path>
                 </svg>
@@ -234,6 +251,7 @@ function iniciarSSE(taskId) {
     const statusText = document.getElementById('statusText');
     const logConsole = document.getElementById('logConsole');
     const eventSource = new EventSource(`/progress/${taskId}`);
+    let alertAssinaturaMostrado = false;
     eventSource.onmessage = function(event) {
         const data = JSON.parse(event.data);
         const progressoProcessamento = 20 + (data.percent * 0.8);
@@ -249,6 +267,19 @@ function iniciarSSE(taskId) {
                 logConsole.appendChild(div);
             });
             logConsole.scrollTop = logConsole.scrollHeight;
+        }
+        // ALERTA DE ASSINATURA DIGITAL (exibe no div abaixo do input)
+        if (data.assinatura && !alertAssinaturaMostrado) {
+            alertAssinaturaMostrado = true;
+            const alertDiv = document.getElementById('alertAssinatura');
+            alertDiv.textContent = 'Atenção: Este PDF possui uma assinatura digital. Processos de OCR podem invalidar a assinatura ou não funcionar corretamente.';
+            alertDiv.classList.remove('d-none');
+        }
+        if (!data.assinatura && alertAssinaturaMostrado) {
+            // Se não tem assinatura, esconde o alerta
+            const alertDiv = document.getElementById('alertAssinatura');
+            alertDiv.classList.add('d-none');
+            alertDiv.textContent = '';
         }
         if (data.status === "Concluído") {
             eventSource.close();

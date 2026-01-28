@@ -10,8 +10,10 @@ from flask import Flask, render_template, request, send_file, jsonify, Response,
 import pathlib
 
 # Importações dos motores internos
+
 from engines.force_ocr import split_volumes, MAX_MB
 from engines.execute_gs import processar_pdf_custom
+from engines.signature import has_signature
 
 app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
@@ -24,30 +26,56 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # Banco de dados temporário de progresso
 progress_db = {}
 
+@app.route('/verificar-assinatura', methods=['POST'])
+def verificar_assinatura():
+    if 'pdf' not in request.files:
+        return jsonify({"assinatura": False, "error": "Nenhum arquivo enviado"}), 400
+    file = request.files['pdf']
+    assinatura = False
+    try:
+        # Salva temporariamente em memória
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=True, suffix='.pdf') as tmp:
+            file.save(tmp.name)
+            assinatura = has_signature(tmp.name)
+    except Exception as e:
+        logging.warning(f"Falha ao verificar assinatura digital: {e}")
+        return jsonify({"assinatura": False, "error": str(e)}), 500
+    return jsonify({"assinatura": assinatura})
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/processar', methods=['POST'])
+
 def processar():
     if 'pdf' not in request.files:
         return jsonify({"error": "Nenhum arquivo enviado"}), 400
-        
+
     file = request.files['pdf']
     config_map = json.loads(request.form.get('config_map', '{}'))
     task_id = str(uuid.uuid4())
-    
+
     # O nome do arquivo original no servidor terá o task_id como prefixo
     input_filename = f"{task_id}_{file.filename}"
     input_path = os.path.join(UPLOAD_FOLDER, input_filename)
     file.save(input_path)
 
+    # Verificação de assinatura digital (background, invisível)
+    assinatura = False
+    try:
+        assinatura = has_signature(input_path)
+    except Exception as e:
+        # Não interrompe o fluxo se der erro na verificação
+        logging.warning(f"Falha ao verificar assinatura digital: {e}")
+
     progress_db[task_id] = {
-        "current": 0, 
-        "total": len(config_map) if config_map else 1, 
-        "status": "Iniciando...", 
+        "current": 0,
+        "total": len(config_map) if config_map else 1,
+        "status": "Iniciando...",
         "logs": f"[{time.strftime('%H:%M:%S')}] Arquivo recebido.\n",
-        "final_file": None
+        "final_file": None,
+        "assinatura": assinatura
     }
 
     def worker_process():
@@ -57,34 +85,34 @@ def processar():
         try:
             # Verifica se alguma página solicitou OCR (valor 6)
             is_ocr = any(int(v) == 6 for v in config_map.values())
-            
+
             if is_ocr:
                 add_log("Iniciando motor de OCR e Divisão de Volumes...")
                 progress_db[task_id]["status"] = "Executando OCR..."
-                
+
                 # split_volumes gera arquivos seguindo o padrão: {task_id}_{filename}_VOL_XX.pdf
                 split_volumes(
                     pathlib.Path(input_path),
                     pathlib.Path(UPLOAD_FOLDER),
                     MAX_MB
                 )
-                
+
                 # CORREÇÃO DO GLOB: Busca arquivos que começam com o ID da tarefa e contêm _VOL_
                 pattern = os.path.join(UPLOAD_FOLDER, f"{task_id}_*_VOL_*.pdf")
                 dividir_files = sorted(glob.glob(pattern))
-                
+
                 if dividir_files:
                     if len(dividir_files) > 1:
                         zip_name = f'volumes_{task_id}.zip'
                         zip_path = os.path.join(UPLOAD_FOLDER, zip_name)
-                        
+
                         add_log(f"Compactando {len(dividir_files)} volumes em ZIP...")
                         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
                             for f in dividir_files:
                                 # Nome limpo dentro do ZIP (remove o UUID do início)
                                 arcname = os.path.basename(f).split('_', 1)[-1]
                                 zipf.write(f, arcname)
-                        
+
                         progress_db[task_id]["final_file"] = zip_name
                     else:
                         # Se gerou apenas 1 arquivo, serve o PDF diretamente
@@ -121,8 +149,9 @@ def progress(task_id):
         last_log_len = 0
         while True:
             task = progress_db.get(task_id)
-            if not task: break
-            
+            if not task:
+                break
+
             logs = task.get("logs", "")
             new_logs = []
             if len(logs) > last_log_len:
@@ -133,14 +162,15 @@ def progress(task_id):
                 "percent": (task["current"] / task["total"]) * 100 if task["total"] > 0 else 0,
                 "status": task["status"],
                 "logs": new_logs,
-                "final_file": task.get("final_file")
+                "final_file": task.get("final_file"),
+                "assinatura": task.get("assinatura")
             }
             yield f"data: {json.dumps(data)}\n\n"
 
             if task["status"] in ["Concluído", "Falha no processamento"]:
                 break
             time.sleep(0.5)
-            
+
     return Response(stream_with_context(event_stream()), mimetype='text/event-stream')
 
 @app.route('/download/<task_id>')
