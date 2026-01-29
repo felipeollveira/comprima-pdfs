@@ -132,7 +132,7 @@ dropZone.ondrop = (e) => {
 pdfInput.onchange = async (e) => {
     const file = e.target.files[0];
     if (!file || file.type !== "application/pdf") return;
- 
+
     // Verifica assinatura digital imediatamente
     const alertDiv = document.getElementById('alertAssinatura');
     alertDiv.classList.add('d-none');
@@ -151,37 +151,54 @@ pdfInput.onchange = async (e) => {
     } catch (err) {
         // Silencioso
     }
- 
+
     previewArea.innerHTML = "";
     pageConfigs = {};
     currentPdfDoc = null; // reseta
- 
+
     originalSizeMB = file.size / (1024 * 1024);
     document.getElementById('origSize').innerText = originalSizeMB.toFixed(2);
     dropText.innerText = file.name;
-    btnDownload.disabled = false;
- 
+    btnDownload.disabled = true; // Desabilita até carregar tudo
+    btnDownload.textContent = "Carregando...";
+
+    const frasesEspera = setTimeout(() => {
+        btnDownload.textContent = "Dividindo pdf...";
+    }, 1500);
+
+
     const dt = new DataTransfer(); dt.items.add(file);
     document.getElementById('hiddenFile').files = dt.files;
- 
+
     const reader = new FileReader();
     reader.onload = async function() {
         const typedarray = new Uint8Array(this.result);
         const pdf = await pdfjsLib.getDocument(typedarray).promise;
- 
+
         // === NOVO: guarda doc para lupa ===
         currentPdfDoc = pdf;
- 
+
         totalPages = pdf.numPages;
+        let loadedPages = 0;
         for (let i = 0; i < totalPages; i++) {
             const skeleton = document.createElement('div');
             skeleton.className = "skeleton-card";
             skeleton.id = `page-container-${i}`;
-            skeleton.innerHTML = `<div class="skeleton-img"></div><div style="height:12px;width:50%;background:#f1f5f9;margin:12px auto;border-radius:4px;"></div>`;
+            skeleton.innerHTML = `<div class=\"skeleton-img\"></div><div style=\"height:12px;width:50%;background:#f1f5f9;margin:12px auto;border-radius:4px;\"></div>`;
             previewArea.appendChild(skeleton);
             pageConfigs[i] = 3;
         }
-        for (let i = 0; i < totalPages; i++) { await renderThumbnail(pdf, i); }
+        // Renderiza cada página e só habilita o botão quando todas estiverem prontas
+        for (let i = 0; i < totalPages; i++) {
+            await renderThumbnail(pdf, i);
+            loadedPages++;
+            if (loadedPages === totalPages) {
+                btnDownload.disabled = false;
+                clearTimeout(frasesEspera);
+                btnDownload.textContent = "OTIMIZAR AGORA";
+
+            }
+        }
         atualizarEstimativa();
     };
     reader.readAsArrayBuffer(file);
@@ -190,7 +207,7 @@ pdfInput.onchange = async (e) => {
 // --- RENDERIZAÇÃO E ESTIMATIVA ---
 async function renderThumbnail(pdf, idx) {
     const page = await pdf.getPage(idx + 1);
-    const viewport = page.getViewport({ scale: 0.6 });
+    const viewport = page.getViewport({ scale: 0.4 });
     const container = document.getElementById(`page-container-${idx}`);
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
