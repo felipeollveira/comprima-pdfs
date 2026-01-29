@@ -160,11 +160,15 @@ pdfInput.onchange = async (e) => {
     document.getElementById('origSize').innerText = originalSizeMB.toFixed(2);
     dropText.innerText = file.name;
     btnDownload.disabled = true; // Desabilita até carregar tudo
-    btnDownload.textContent = "Carregando...";
+    btnDownload.textContent = "Carregando páginas...";
 
-    const frasesEspera = setTimeout(() => {
-        btnDownload.textContent = "Dividindo pdf...";
-    }, 1500);
+    let frasesEspera = setTimeout(() => {
+        btnDownload.textContent = "Ainda carregando...";
+        setTimeout(() => {
+            btnDownload.textContent = "Quase lá...";
+        }, 2000);
+    }, 3000);
+    
 
 
     const dt = new DataTransfer(); dt.items.add(file);
@@ -193,9 +197,12 @@ pdfInput.onchange = async (e) => {
             await renderThumbnail(pdf, i);
             loadedPages++;
             if (loadedPages === totalPages) {
-                btnDownload.disabled = false;
                 clearTimeout(frasesEspera);
-                btnDownload.textContent = "OTIMIZAR AGORA";
+                btnDownload.textContent = "Pronto!"
+                setTimeout(() => {
+                    btnDownload.textContent = "OTIMIZAR AGORA";
+                    btnDownload.disabled = false;
+                }, 800);
 
             }
         }
@@ -358,6 +365,12 @@ btnClear.onclick = () => {
     if (dropText.innerText == "Arraste o PDF aqui ou clique") return;
     if (confirm("Limpar o formulário irá remover o arquivo carregado e todas as configurações feitas. Tem certeza que deseja continuar?")) {
         pdfInput.value = "";
+
+
+        btnDownload.textContent = "OTIMIZAR AGORA";
+        btnDownload.disabled = true;
+
+
         alertAssinatura.classList.add('d-none');
         previewArea.innerHTML = "";
         dropText.innerText = "Arraste o PDF aqui ou clique";
