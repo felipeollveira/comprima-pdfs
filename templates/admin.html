@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin - PDF Otimizier</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 18px; color:#0f172a; background:#f8fafc; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 12px; margin-top: 12px;}
+    .card { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:14px; }
+    .muted { color:#64748b; font-size:12px; }
+    .big { font-size:28px; font-weight:800; }
+    table { width:100%; border-collapse:collapse; margin-top:12px; background:#fff; border-radius:14px; overflow:hidden; }
+    th, td { border-bottom:1px solid #eef2f7; padding:10px; font-size:13px; vertical-align:top; }
+    th { background:#f1f5f9; text-align:left; }
+    .stars { font-weight:800; }
+    .pill { display:inline-block; padding:2px 10px; border-radius:999px; background:#0ea5e9; color:#fff; font-size:12px; }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div>
+      <h2 style="margin:0;">📊 Admin - Métricas</h2>
+      <div class="muted">Arquivos: <b>data/usage.csv</b> e <b>data/feedback.csv</b> (abre no Excel)</div>
+    </div>
+    <div class="pill">Ativas agora: {{ active_tasks }}</div>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="muted">Uploads</div><div class="big">{{ metrics.uploads }}</div></div>
+    <div class="card"><div class="muted">Downloads</div><div class="big">{{ metrics.downloads }}</div></div>
+    <div class="card"><div class="muted">Feedbacks</div><div class="big">{{ metrics.feedback_count }}</div></div>
+    <div class="card">
+      <div class="muted">Média de estrelas</div>
+      <div class="big">{{ metrics.avg_stars }}</div>
+      <div class="muted">Aprovação (4-5★): {{ metrics.approval_rate_pct }}%</div>
+    </div>
+  </div>
+
+  <h3 style="margin:18px 0 6px;">⭐ Últimos feedbacks</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Data/hora</th>
+        <th>Stars</th>
+        <th>Módulo</th>
+        <th>Mensagem</th>
+        <th>IP</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in feedback %}
+      <tr>
+        <td>{{ r.ts }}</td>
+        <td class="stars">{{ r.stars }}★</td>
+        <td>{{ r.module }}</td>
+        <td>{{ r.message }}</td>
+        <td>{{ r.ip }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <h3 style="margin:18px 0 6px;">Últimos eventos de uso</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Data/hora</th>
+        <th>Evento</th>
+        <th>Endpoint</th>
+        <th>Task</th>
+        <th>IP</th>
+        <th>Extra</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in usage %}
+      <tr>
+        <td>{{ r.ts }}</td>
+        <td>{{ r.event }}</td>
+        <td>{{ r.endpoint }}</td>
+        <td>{{ r.job_id }}</td>
+        <td>{{ r.ip }}</td>
+        <td>{{ r.extra }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

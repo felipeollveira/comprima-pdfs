@@ -44,6 +44,9 @@ COPY . .
 RUN mkdir -p uploads && chmod 777 uploads
 ENV PYTHONUNBUFFERED=1
 
+# Garante que /dev/shm (RAM Disk) está acessível para processamento rápido
+RUN mkdir -p /dev/shm/pdf-optimizer && chmod 777 /dev/shm/pdf-optimizer
+
 EXPOSE 5000
 
 CMD ["python", "app.py"]

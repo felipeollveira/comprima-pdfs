@@ -9,6 +9,8 @@ __pycache__/
 # uploads
 uploads/
 *.pdf
+data/
+*.xlsx
 
 # Distribution / packaging
 .Python

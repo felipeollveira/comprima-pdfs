@@ -2,5 +2,6 @@ flask
 pymupdf
 pikepdf
 ocrmypdf
-jbig2
+#jbig2
 PyPDF2
+pytz

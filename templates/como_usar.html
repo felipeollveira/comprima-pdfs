@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="https://sai.io.org.br/Handler.ashx?f=i&query=0ef801ef-3d21-4843-93be-6c0979f314aa.jpg" alt="Favicon Lauro de Freitas">
+
+    <title>Manual do Usuário - Sistema de PDFs</title>
+    <style>
+        :root {
+            --primary-color: #6a6edb; /* Tom de azul do logo */
+            --bg-color: #f4f7f6;
+            --text-color: #333;
+            --white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--white);
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        header {
+            text-align: center;
+            border-bottom: 2px solid var(--primary-color);
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .logo-placeholder {
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 1.5em;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        
+        h1 { color: var(--primary-color); font-size: 1.8em; margin-top: 10px; }
+        h2 { color: var(--primary-color); border-left: 5px solid var(--primary-color); padding-left: 10px; margin-top: 30px; }
+        
+        .highlight-box {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        
+        .step-list {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .step-list li {
+            background: #eef0ff;
+            margin-bottom: 10px;
+            padding: 15px;
+            border-left: 5px solid var(--primary-color);
+            border-radius: 3px;
+        }
+        
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 0.9em;
+            color: #777;
+        }
+        </style>
+</head>
+<body>
+    
+    <div class="container">
+        <header>
+            <h1>Manual do Usuário</h1>
+            <p><strong>Sistema de Processamento e Adequação de PDFs</strong></p> 
+        </header>
+        <a href="/">Voltar</a>
+
+    <section>
+        <h2>1. Objetivo do Sistema</h2>
+        <p>Este sistema tem como objetivo adequar documentos em formato PDF para envio a órgãos de controle, como o Tribunal de Contas dos Municípios (TCM) e sistemas institucionais que impõem limite de tamanho por arquivo.</p>
+    </section>
+
+    <section>
+        <h2>2. Funcionalidades Principais</h2>
+        <ul>
+            <li><strong>OCR:</strong> Reconhecimento Óptico de Caracteres para tornar documentos pesquisáveis.</li>
+            <li><strong>Compressão:</strong> Otimização do tamanho do arquivo.</li>
+            <li><strong>Divisão Automática:</strong> Segmentação de documentos em volumes de até 4,5 MB.</li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>3. Fluxo de Utilização</h2>
+        <ol class="step-list">
+            <li><strong>Etapa 1:</strong> Selecionar o documento PDF no sistema.</li>
+            <li><strong>Etapa 2:</strong> Configurar o nível de compressão ou OCR conforme necessário.</li>
+            <li><strong>Etapa 3:</strong> Executar o processamento e aguardar a conclusão.</li>
+            <li><strong>Etapa 4:</strong> Realizar o download dos arquivos finais.</li>
+        </ol>
+    </section>
+
+    <section class="highlight-box">
+        <h2>4. Atenção: Assinatura Digital</h2>
+        <p><strong>Importante:</strong> A assinatura digital deve ser realizada <strong>somente após</strong> o processamento do documento. Qualquer alteração (OCR, compressão ou divisão) invalida assinaturas aplicadas anteriormente.</p>
+    </section>
+
+    <section>
+        <h2>5. Boas Práticas</h2>
+        <ul>
+            <li>Não processe documentos que já possuam assinatura digital.</li>
+            <li>Confira o tamanho final dos arquivos após o processamento.</li>
+            <li>Priorize o uso de <strong>OCR + divisão</strong> em PDFs de grande volume para garantir maior eficiência nos limites de tamanho.</li>
+        </ul>
+    </section>
+    <footer class="footer">
+        <p>Em caso de dúvidas, entre em contato com a DTIC Prefeitura Municipal de Lauro de Freitas.</p>
+        <p>Lauro de Freitas - BA, 2026 </p>
+    </footer>
+    
+</div>
+
+</body>
+</html>

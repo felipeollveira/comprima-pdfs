@@ -1,131 +1,156 @@
-"""
-ATENÇÃO: Se o usuário selecionar OCR para páginas específicas, chame apenas a função ocr().
-NÃO chame split_volumes nesse caso. split_volumes é para divisão de volumes sem OCR isolado.
-A lógica de decisão deve estar no backend (ex: app.py).
-"""
-
 import pathlib
 import subprocess
 import os
 import logging
-
-import fitz
+import fitz  # PyMuPDF
 import pikepdf
+import shutil
+from engines.ramdisk import temp_dir
 
-DPI = 200
+# Configurações globais
 LANG = "por+eng"
-MAX_MB = 4.8
-JPEG_QUALITY = 60
-
-
-def mb(b): return b / (1024 * 1024)
+MAX_MB = 5.0
+LIMITE_CHARS_OCR = 200 
 
 def run(cmd):
-    logging.info(f"Executando comando: {' '.join(map(str, cmd))}")
+    """Executa o comando capturando erros detalhados do stderr."""
+    logging.info(f"Executando: {' '.join(map(str, cmd))}")
     try:
-        subprocess.run(cmd, check=True)
-        logging.info("Comando executado com sucesso.")
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+        return result
     except subprocess.CalledProcessError as e:
-        logging.error(f"Erro ao executar comando: {e}")
+        logging.error(f"Erro no OCRmyPDF (Status {e.returncode}):")
+        logging.error(f"STDERR: {e.stderr}")
         raise
 
-
-def raster_grayscale(input_pdf, out_pdf, dpi):
-    logging.info(f"Rasterizando PDF em tons de cinza: {input_pdf} -> {out_pdf} @ {dpi}dpi")
-    src = fitz.open(str(input_pdf))
-    dst = fitz.open()
-    zoom = dpi / 72.0
-    mat = fitz.Matrix(zoom, zoom)
-
+def get_paginas_necessitam_ocr(input_pdf, limite=LIMITE_CHARS_OCR):
+    """Analisa o PDF e identifica páginas com imagens dominantes e pouco texto."""
+    paginas_alvo = []
     try:
-        for page in src:
-            pix = page.get_pixmap(matrix=mat, colorspace=fitz.csGRAY, alpha=False)
-            rect = fitz.Rect(0, 0, pix.width, pix.height)
-            p = dst.new_page(width=rect.width, height=rect.height)
-            p.insert_image(
-                rect,
-                stream=pix.tobytes("jpeg"),
-                keep_proportion=True
-            )
-        dst.save(out_pdf, deflate=True)
-        logging.info(f"Rasterização concluída: {out_pdf}")
+        doc = fitz.open(str(input_pdf))
+        for i, page in enumerate(doc):
+            texto = page.get_text().strip()
+            palavra_count = len(texto.split())
+            
+            # Detecta imagens na página
+            imagens = page.get_images(full=True)
+            tem_imagem = len(imagens) > 0
+            
+            # Calcula área das imagens vs área da página
+            page_area = page.rect.width * page.rect.height
+            imagem_area_total = 0
+            for img in imagens:
+                try:
+                    xref = img[0]
+                    img_rects = page.get_image_rects(xref)
+                    for rect in img_rects:
+                        imagem_area_total += rect.width * rect.height
+                except:
+                    pass
+            
+            # Imagem dominante: ocupa mais de 30% da página
+            imagem_dominante = imagem_area_total > (page_area * 0.3) if page_area > 0 else False
+            
+            # Precisa OCR se: tem imagem dominante E pouco texto
+            if tem_imagem and imagem_dominante and palavra_count < 50:
+                paginas_alvo.append(i + 1)
+        doc.close()
     except Exception as e:
-        logging.error(f"Erro ao rasterizar PDF: {e}")
-        raise
-    finally:
-        dst.close()
-        src.close()
-
+        logging.error(f"Erro ao analisar texto: {e}")
+        return None 
+    return paginas_alvo
 
 def ocr(input_pdf, out_pdf, pages=None):
+    """Executa OCR seletivo sem duplicar argumentos de arquivo."""
+    # Se a triagem indicou que não precisa de OCR, apenas copia
+    if pages is not None and len(pages) == 0:
+        if str(input_pdf) != str(out_pdf):
+            import shutil
+            shutil.copy(str(input_pdf), str(out_pdf))
+        return
+
+    # Usamos caminhos absolutos para evitar problemas em threads
+    abs_input = os.path.abspath(input_pdf)
+    abs_output = os.path.abspath(out_pdf)
+
+    # Base do comando com argumentos limpos
     cmd = [
         "ocrmypdf",
-        "--output-type", "pdf",      # Muda de PDF/A para PDF comum (reduz tamanho)
-        "--optimize", "3",           # Nível 3: Compressão JBIG2 agressiva
-        "--pdf-renderer", "sandwich",
-        "--force-ocr",                  
+        "--output-type", "pdf",
+        "--optimize", "1",
+        "--force-ocr", # Garante processamento onde o texto é esparso
         "--deskew",
-        "--clean",                   # Remove ruído da imagem para melhorar compressão
         "--rotate-pages",
-        "--jpeg-quality", str(JPEG_QUALITY),
-        "--jbig2-lossy",             # Ativado (agora que você tem jbig2enc)
-        "-l", LANG,
-        str(input_pdf),
-        str(out_pdf)
+        "--jobs", "1",
+        "--invalidate-digital-signatures",
+        "-l", str(LANG)
     ]
-    if pages:
-        # Se for um volume já cortado, não passamos o range original
-        # Apenas passamos se o input for o PDF original completo
-        cmd.extend(["--pages", str(pages)])
+    
+    # Adiciona páginas APENAS se houver uma lista específica (uso em volumes)
+    if pages and isinstance(pages, list):
+        cmd.extend(["--pages", ",".join(map(str, pages))])
+    
+    # Adiciona os arquivos de entrada e saída uma única vez
+    cmd.append(abs_input)
+    cmd.append(abs_output)
     
     run(cmd)
 
-def split_volumes(pdf_path, out_dir, max_mb):
-    logging.info(f"Iniciando divisão em volumes: {pdf_path} -> {out_dir} (max_mb={max_mb})")
+def split_volumes(pdf_path, out_dir, max_mb, on_page=None, on_volume=None, on_ocr=None, check_cancelled=None):
+    """Divide o PDF em volumes respeitando o limite de MB."""
+    logging.info(f"Iniciando divisão em volumes: {pdf_path}")
     pathlib.Path(out_dir).mkdir(parents=True, exist_ok=True)
-    max_mb = min(float(max_mb), 5.0) 
-    max_bytes = int(max_mb * 1024 * 1024)
+    max_bytes = int(float(max_mb) * 1024 * 1024)
+    ram_dir = temp_dir()  # /dev/shm para I/O rápido
     
-    try:
-        with pikepdf.open(pdf_path) as pdf:
-            total = len(pdf.pages)
-            vol = 1
-            i = 0
-
+    with pikepdf.open(pdf_path) as pdf:
+        total = len(pdf.pages)
+        vol, i = 1, 0
+        current_page = 0
+        while i < total:
+            part = pikepdf.Pdf.new()
+            added = 0
+            final_out = out_dir / f"{pdf_path.stem}_VOL_{vol:02d}.pdf"
+            # Usa RAM Disk para escrita intermediária rápida
+            ram_out = pathlib.Path(ram_dir) / f"{pdf_path.stem}_VOL_{vol:02d}.pdf"
             while i < total:
-                part = pikepdf.Pdf.new()
-                added = 0
-                out = out_dir / f"{pdf_path.stem}_VOL_{vol:02d}.pdf"
+                if check_cancelled and check_cancelled():
+                    # Limpa arquivo temporário do RAM Disk
+                    if ram_out.exists():
+                        ram_out.unlink()
+                    return {"cancelled": True, "total_pages": total}
+                part.pages.append(pdf.pages[i])
+                added += 1
+                i += 1
+                current_page += 1
+                if on_page:
+                    on_page(current_page, total)
+                # Salva no RAM Disk (muito mais rápido que disco)
+                part.save(str(ram_out))
+                if ram_out.stat().st_size > max_bytes and added > 1:
+                    # Volume cheio, remove a última página adicionada
+                    del part.pages[-1]
+                    part.save(str(ram_out))
+                    i -= 1  # Readiciona a página para o próximo volume
+                    current_page -= 1
+                    break
+            
+            # Log mais informativo
+            size_mb = ram_out.stat().st_size / (1024 * 1024)
+            logging.info(f"Volume {vol} criado com {added} páginas ({size_mb:.2f} MB)")
+            if on_volume:
+                on_volume(vol, added, size_mb)
+            
+            # Aplica OCR no RAM Disk (leitura e escrita em RAM)
+            try:
+                if on_ocr:
+                    on_ocr(vol)
+                ocr(str(ram_out), str(ram_out))
+            except Exception as e:
+                logging.warning(f"Falha no OCR do volume {vol}. O arquivo será mantido sem OCR: {e}")
+            
+            # Move resultado final do RAM Disk para disco
+            shutil.move(str(ram_out), str(final_out))
+            vol += 1
 
-                start_page = i + 1  # 1-based
-                while i < total:
-                    part.pages.append(pdf.pages[i])
-                    added += 1
-                    part.save(out)
-
-                    if out.stat().st_size > max_bytes:
-                        if added == 1:
-                            i += 1
-                        else:
-                            part2 = pikepdf.Pdf.new() # type: ignore
-                            for k in range(added - 1):
-                                part2.pages.append(pdf.pages[i - (added - 1) + k])
-                            part2.save(out)
-                        break
-
-                    i += 1
-
-                end_page = start_page + added - 1
-                if added > 0 and end_page >= start_page:
-                    # Chame o OCR apenas se o intervalo for válido
-                    try:
-                        ocr(out, out)
-                    except Exception as e:
-                        logging.error(f"Erro ao rodar OCR no volume {vol}: {e}")
-
-                logging.info(f"Volume {vol}: {out.name} ({mb(out.stat().st_size):.2f} MB)")
-                vol += 1
-        logging.info("Divisão em volumes concluída.")
-    except Exception as e:
-        logging.error(f"Erro na divisão em volumes: {e}")
-        raise
+    return {"cancelled": False, "total_pages": total}

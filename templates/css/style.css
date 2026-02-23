@@ -52,6 +52,22 @@
 #statusText {
     transition: opacity 0.2s ease-in-out;
 }
+
+.progress-details {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.progress-pill {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px;
+    color: #e2e8f0;
+}
         @media (max-width: 991px) {
             .btn-group {
                 width: 100%;
@@ -131,7 +147,7 @@
        
 /* LUPA  */
 .pdf-modal.hidden { display: none; }
- 
+
 .pdf-modal {
   position: fixed;
   inset: 0;
@@ -215,4 +231,163 @@
 }
 .preview-zoom-btn:hover {
   background: rgba(0,0,0,.06);
+}
+
+/* --- MELHORIAS PARA MOBILE --- */
+
+@media (max-width: 768px) {
+    /* 1. Ajuste de Tipografia e Espaçamento Geral */
+    body {
+        font-size: 14px;
+    }
+
+    #btnDownload{
+        padding: 0.6rem;
+        font-size: 0.85rem;
+        align-items: end;
+    }
+    .container {
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+
+    /* 2. Barra de Status Fixa (Stats-bar) */
+    .stats-bar {
+        position: sticky;
+        top: 10px;
+        padding: 10px 15px;
+        font-size: 0.85rem;
+        width: 95%; /* Garante que não cole nas bordas */
+        flex-wrap: wrap; /* Caso tenha muitos itens, eles quebram linha */
+        justify-content: center;
+        gap: 10px;
+    }
+
+    /* 3. Grid de Previsualização */
+    .preview-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); /* Cards menores no mobile */
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .page-card {
+        padding: 8px; /* Reduz padding interno */
+    }
+
+    /* 4. Modal do PDF (Crucial para Mobile) */
+    .pdf-modal__panel {
+        width: 100vw;
+        height: 100vh;
+        margin: 0;
+        border-radius: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .pdf-modal__header {
+        padding: 10px;
+    }
+
+    .pdf-modal__actions {
+        gap: 4px;
+    }
+
+    .btn-mini {
+        padding: 8px 12px; /* Aumenta área de toque (Touch Target) */
+        font-size: 12px;
+    }
+
+    /* 5. Ajuste do Canvas e Preview */
+    canvas {
+        transform: none !important; /* Remove o translateY negativo que pode esconder o topo no mobile */
+    }
+
+    .canvas-wrapper {
+        height: auto;
+        min-height: 120px;
+    }
+
+    /* 6. Console de Logs */
+    #logConsole {
+        font-size: 11px;
+        max-height: 150px;
+    }
+
+    /* 7. Drop Zone (Área de Upload) */
+    .drop-zone {
+        min-height: 120px;
+        padding: 20px;
+        text-align: center;
+    }
+
+    /* 8. Botão de Lupa */
+    .preview-zoom-btn {
+        padding: 10px; /* Mais fácil de clicar com o polegar */
+    }
+}
+
+/* Ajuste específico para telas muito pequenas (iPhone SE, etc) */
+@media (max-width: 480px) {
+    .preview-grid {
+        grid-template-columns: 1fr 1fr; /* Força 2 colunas */
+    }
+    
+    .logo-wrapper img {
+        height: 35px;
+    }
+}
+/* ===== FEEDBACK MODAL ===== */
+.fb-modal.hidden { display: none; }
+.fb-modal { position: fixed; inset: 0; z-index: 9999; }
+.fb-backdrop { position:absolute; inset:0; background: rgba(0,0,0,.55); }
+
+.fb-panel{
+  position: relative;
+  width: min(620px, 94vw);
+  margin: 10vh auto;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+}
+
+.fb-header{
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+  padding: 12px 14px;
+  border-bottom: 1px solid #eef2f7;
+  background:#f8fafc;
+}
+
+.fb-title{ font-weight: 800; color:#0f172a; }
+.fb-close{
+  border: 1px solid #e2e8f0;
+  background:#fff;
+  border-radius: 10px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.fb-body{ padding: 14px; }
+.fb-hint{ color:#64748b; font-size:12px; margin-top:8px; }
+
+.fb-stars{ display:flex; gap:8px; margin-top: 6px; }
+.fb-star{
+  font-size: 26px;
+  line-height: 1;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  color: #cbd5e1;
+  padding: 2px 4px;
+}
+.fb-star.active{ color: #f59e0b; }
+.fb-actions{ display:flex; align-items:center; gap:10px; margin-top: 10px; }
+.fb-status{ font-size: 12px; color:#64748b; }
+
+@media (max-width: 480px){
+  .fb-panel{ margin: 6vh auto; }
+  .fb-star{ font-size: 24px; }
 }
