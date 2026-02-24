@@ -6,6 +6,7 @@ const dropZone = document.getElementById('dropZone');
 const dropText = document.getElementById('dropText');
 const previewArea = document.getElementById('previewArea');
 const btnDownload = document.getElementById('btnDownload');
+const btnClear = document.getElementById('btnClear');
 
 let pageConfigs = {};
 let originalSizeMB = 0;
@@ -27,6 +28,82 @@ const closeBtn = document.getElementById("closePdfModalBtn");
 
 let currentPreviewPage = 1;
 let currentScale = 1.6;
+
+/* =========================================================
+   ✅ BALÃO CENTRAL (Download concluído) - showCenterToast
+   - fica no meio
+   - só sai ao clicar em Fechar / clicar fora / ESC
+   ========================================================= */
+
+(function () {
+  const container = document.getElementById("toastContainer");
+  if (!container) return;
+
+  let isOpen = false;
+  let onCloseCb = null;
+
+  function closeToast() {
+    if (!isOpen) return;
+    isOpen = false;
+    container.classList.remove("show");
+    container.innerHTML = "";
+    document.body.style.overflow = "";
+
+    if (typeof onCloseCb === "function") {
+      const fn = onCloseCb;
+      onCloseCb = null;
+      try { fn(); } catch (e) {}
+    }
+  }
+
+  function showCenterToast({ title, message, type = "success", closeText = "Fechar", onClose = null }) {
+    onCloseCb = onClose || null;
+
+    container.innerHTML = `
+      <div class="toast-backdrop" data-toast-close="1"></div>
+      <div class="toast-box ${type}" role="dialog" aria-modal="true" aria-label="${title || "Aviso"}">
+        <div class="toast-row">
+          <div class="toast-icon">${type === "success" ? "✅" : type === "error" ? "❌" : "ℹ️"}</div>
+          <div class="toast-content">
+            <div class="toast-title">${title || "Aviso"}</div>
+            <div class="toast-msg">${message || ""}</div>
+          </div>
+        </div>
+        <div class="toast-actions">
+          <button type="button" class="toast-btn toast-btn-close" id="toastCloseBtn">${closeText}</button>
+        </div>
+      </div>
+    `;
+
+    container.classList.add("show");
+    isOpen = true;
+    document.body.style.overflow = "hidden";
+
+    // Fechar ao clicar no fundo
+    const backdrop = container.querySelector("[data-toast-close='1']");
+    if (backdrop) backdrop.addEventListener("click", closeToast);
+
+    // Fechar ao clicar no botão
+    const closeBtn = container.querySelector("#toastCloseBtn");
+    if (closeBtn) closeBtn.addEventListener("click", closeToast);
+
+    // ESC
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        closeToast();
+        document.removeEventListener("keydown", onKeyDown);
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+  }
+
+  window.showCenterToast = showCenterToast;
+  window.closeCenterToast = closeToast;
+})();
+
+/* ===========================
+   LUPA
+   =========================== */
 
 function openPdfModal() {
     if (!modal) return;
@@ -156,12 +233,12 @@ pdfInput.onchange = async (e) => {
 
     previewArea.innerHTML = "";
     pageConfigs = {};
-    currentPdfDoc = null; // reseta
+    currentPdfDoc = null;
 
     originalSizeMB = file.size / (1024 * 1024);
     document.getElementById('origSize').innerText = originalSizeMB.toFixed(2);
     dropText.innerText = file.name;
-    btnDownload.disabled = true; // Desabilita até carregar tudo
+    btnDownload.disabled = true;
     btnDownload.textContent = "Carregando páginas...";
 
     let frasesEspera = setTimeout(() => {
@@ -171,8 +248,6 @@ pdfInput.onchange = async (e) => {
         }, 2000);
     }, 3000);
 
-
-
     const dt = new DataTransfer(); dt.items.add(file);
     document.getElementById('hiddenFile').files = dt.files;
 
@@ -181,7 +256,6 @@ pdfInput.onchange = async (e) => {
         const typedarray = new Uint8Array(this.result);
         const pdf = await pdfjsLib.getDocument(typedarray).promise;
 
-        // === NOVO: guarda doc para lupa ===
         currentPdfDoc = pdf;
 
         totalPages = pdf.numPages;
@@ -190,22 +264,21 @@ pdfInput.onchange = async (e) => {
             const skeleton = document.createElement('div');
             skeleton.className = "skeleton-card";
             skeleton.id = `page-container-${i}`;
-            skeleton.innerHTML = `<div class=\"skeleton-img\"></div><div style=\"height:12px;width:50%;background:#f1f5f9;margin:12px auto;border-radius:4px;\"></div>`;
+            skeleton.innerHTML = `<div class="skeleton-img"></div><div style="height:12px;width:50%;background:#f1f5f9;margin:12px auto;border-radius:4px;"></div>`;
             previewArea.appendChild(skeleton);
             pageConfigs[i] = 3;
         }
-        // Renderiza cada página e só habilita o botão quando todas estiverem prontas
+
         for (let i = 0; i < totalPages; i++) {
             await renderThumbnail(pdf, i);
             loadedPages++;
             if (loadedPages === totalPages) {
                 clearTimeout(frasesEspera);
-                btnDownload.textContent = "Pronto!"
+                btnDownload.textContent = "Pronto!";
                 setTimeout(() => {
                     btnDownload.textContent = "OTIMIZAR AGORA";
                     btnDownload.disabled = false;
                 }, 800);
-
             }
         }
         atualizarEstimativa();
@@ -345,33 +418,92 @@ document.getElementById('mainForm').onsubmit = function(e) {
     xhr.send(formData);
 };
 
+/* =========================================================
+   ✅ DOWNLOAD (agora retorna OK/ERRO sem alert interno)
+   ========================================================= */
 async function baixarArquivo(url, nome) {
-    try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("Arquivo não encontrado ou erro no servidor.");
-        const blob = await response.blob();
-        const link = document.createElement('a');
-        link.href = window.URL.createObjectURL(blob);
-        link.download = nome || url.split('/').pop();
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    } catch (err) {
-        alert("Erro ao baixar arquivo: " + err.message);
-    }
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Arquivo não encontrado ou erro no servidor.");
+
+    const blob = await response.blob(); // só termina quando baixou tudo
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.download = nome || url.split('/').pop();
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setTimeout(() => {
+        try { URL.revokeObjectURL(link.href); } catch (e) {}
+    }, 5000);
+
+    return true;
 }
 
+/* =========================================================
+   ✅ FINALIZA (mostra balão central após baixar)
+   ========================================================= */
 function finalizarProcesso(url, nome) {
     isDownloading = true;
     const statusText = document.getElementById('statusText');
+    const overlay = document.getElementById('progressOverlay');
+
     statusText.innerHTML = '<span class="text-success">✓</span> Pronto! Baixando...';
     document.getElementById('btnCancelar').style.display = 'none';
+
     setTimeout(async () => {
-        await baixarArquivo(url, nome);
-        setTimeout(() => {
-            document.getElementById('progressOverlay').style.display = 'none';
-            isDownloading = false;
-        }, 1000);
+        try {
+            await baixarArquivo(url, nome);
+
+            // ✅ BALÃO CENTRAL (fica até fechar)
+            if (typeof window.showCenterToast === "function") {
+                window.showCenterToast({
+                    title: "Download concluído",
+                    message: "O arquivo foi baixado com sucesso.",
+                    type: "success",
+                    closeText: "Fechar",
+                    onClose: () => {
+                        // ✅ se você quiser fechar o overlay só quando clicar em Fechar, deixe assim:
+                        if (overlay) overlay.style.display = 'none';
+                        isDownloading = false;
+                    }
+                });
+
+                // Se preferir fechar overlay imediatamente e deixar só o balão, descomente:
+                // if (overlay) overlay.style.display = 'none';
+                // isDownloading = false;
+
+            } else {
+                // fallback caso não tenha o toast
+                alert("Download concluído ✅");
+                if (overlay) overlay.style.display = 'none';
+                isDownloading = false;
+            }
+
+            statusText.innerHTML = '<span class="text-success">✓</span> Download concluído.';
+
+        } catch (err) {
+            console.error(err);
+
+            if (typeof window.showCenterToast === "function") {
+                window.showCenterToast({
+                    title: "Falha no download",
+                    message: "Não foi possível baixar o arquivo. Tente novamente.",
+                    type: "error",
+                    closeText: "Fechar",
+                    onClose: () => {
+                        if (overlay) overlay.style.display = 'none';
+                        isDownloading = false;
+                    }
+                });
+            } else {
+                alert("Erro ao baixar arquivo: " + err.message);
+                if (overlay) overlay.style.display = 'none';
+                isDownloading = false;
+            }
+
+            statusText.innerHTML = '<span class="text-danger">✗</span> Erro ao baixar.';
+        }
     }, 500);
 }
 
@@ -380,23 +512,27 @@ btnClear.onclick = () => {
     if (confirm("Limpar o formulário irá remover o arquivo carregado e todas as configurações feitas. Tem certeza que deseja continuar?")) {
         pdfInput.value = "";
 
-
         btnDownload.textContent = "OTIMIZAR AGORA";
         btnDownload.disabled = true;
 
+        const alertAssinatura = document.getElementById('alertAssinatura');
+        if (alertAssinatura) {
+            alertAssinatura.classList.add('d-none');
+            alertAssinatura.textContent = '';
+        }
 
-        alertAssinatura.classList.add('d-none');
         previewArea.innerHTML = "";
         dropText.innerText = "Arraste o PDF aqui ou clique";
-        alertAssinatura.classList.add('d-none');
-        alertAssinatura.textContent = '';
+
         pageConfigs = {};
         originalSizeMB = 0;
         totalPages = 0;
         currentPdfDoc = null;
+
         document.getElementById('origSize').innerText = "0.00";
         document.getElementById('estSize').innerText = "0.00";
         document.getElementById('reduction').innerText = "0";
+
         btnDownload.disabled = true;
         closePdfModal();
     }
@@ -505,13 +641,11 @@ let currentTaskId = null;
 
 document.getElementById('btnCancelar').onclick = async function() {
     if (confirm('Tem certeza que deseja cancelar o processamento?')) {
-        // Desabilita o botão e mostra que está cancelando
         const btn = document.getElementById('btnCancelar');
         btn.disabled = true;
         btn.textContent = 'Cancelando...';
         document.getElementById('statusText').innerText = 'Cancelando processamento...';
 
-        // Chama API para cancelar no backend
         if (currentTaskId) {
             try {
                 await fetch(`/cancelar/${currentTaskId}`, { method: 'POST' });
@@ -520,33 +654,27 @@ document.getElementById('btnCancelar').onclick = async function() {
             }
         }
 
-        // Fecha o EventSource se existir
         if (currentEventSource) {
             currentEventSource.close();
             currentEventSource = null;
         }
 
-        // Cancela o XHR se existir
         if (currentXHR) {
             currentXHR.abort();
             currentXHR = null;
         }
 
-        // Aguarda um pouco para o backend processar
         setTimeout(() => {
-            // Fecha o overlay
             document.getElementById('progressOverlay').style.display = 'none';
             btn.style.display = 'none';
             btn.disabled = false;
             btn.textContent = 'Cancelar';
 
-            // Reseta a barra de progresso
             const progressBar = document.getElementById('progressBar');
             progressBar.style.width = '0%';
             progressBar.classList.remove('bg-danger');
             progressBar.classList.remove('bg-warning');
 
-            // Reseta status
             document.getElementById('statusText').innerText = 'Processando Documento';
             const elapsedText = document.getElementById('elapsedText');
             const pagesText = document.getElementById('pagesText');
@@ -555,7 +683,6 @@ document.getElementById('btnCancelar').onclick = async function() {
             if (pagesText) pagesText.innerText = '0/0';
             if (percentText) percentText.innerText = '0%';
 
-            // Limpa console de logs
             document.getElementById('logConsole').innerHTML = '<div class="text-success small mb-1">> Aguardando logs do servidor...</div>';
 
             currentTaskId = null;
@@ -563,8 +690,6 @@ document.getElementById('btnCancelar').onclick = async function() {
     }
 };
 
-
-// ===== FEEDBACK UI (novo) =====
 (function () {
   const fbModal = document.getElementById("feedbackModal");
   const btnOpen = document.getElementById("openFeedback");

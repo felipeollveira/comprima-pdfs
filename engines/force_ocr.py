@@ -9,7 +9,7 @@ from engines.ramdisk import temp_dir
 
 # Configurações globais
 LANG = "por+eng"
-MAX_MB = 5.0
+MAX_MB = 4.8
 LIMITE_CHARS_OCR = 200 
 
 def run(cmd):
@@ -77,16 +77,16 @@ def ocr(input_pdf, out_pdf, pages=None):
     cmd = [
         "ocrmypdf",
         "--output-type", "pdf",
-        "--optimize", "1",
-        "--force-ocr", # Garante processamento onde o texto é esparso
+        "--optimize", "2",
+        "--force-ocr",
         "--deskew",
         "--rotate-pages",
-        "--jobs", "1",
+        "--jobs", "10",
         "--invalidate-digital-signatures",
         "-l", str(LANG)
     ]
     
-    # Adiciona páginas APENAS se houver uma lista específica (uso em volumes)
+    # Adiciona pypáginas APENAS se houver uma lista específica (uso em volumes)
     if pages and isinstance(pages, list):
         cmd.extend(["--pages", ",".join(map(str, pages))])
     

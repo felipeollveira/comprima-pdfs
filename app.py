@@ -57,6 +57,43 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 progress_db = {}
 
 
+def _mode(values):
+    return max(set(values), key=values.count)
+
+
+def _resolve_hp_level_from_config(config_map):
+    """
+    Resolve nível de compressão para o HP-OCR com base no que veio do front.
+
+    Prioridade:
+      1) DPI direto (20..600), ex.: 150, 70
+      2) Presets 1..5 (compressão padrão do front)
+      3) Fallback 3 (média / 150dpi)
+    """
+    if not config_map:
+        return 3
+
+    values = []
+    for v in config_map.values():
+        try:
+            values.append(int(v))
+        except (TypeError, ValueError):
+            continue
+
+    if not values:
+        return 3
+
+    dpi_values = [v for v in values if 20 <= v <= 600]
+    if dpi_values:
+        return _mode(dpi_values)
+
+    preset_values = [v for v in values if v in (1, 2, 3, 4, 5)]
+    if preset_values:
+        return _mode(preset_values)
+
+    return 3
+
+
 # ✅ SERVIR CSS/JS de dentro de templates/
 # Seus arquivos ficam em:
 # templates/css/style.css  -> /assets/css/style.css
@@ -188,6 +225,9 @@ def processar():
                 progress_db[task_id]["current"] = 0
                 progress_db[task_id]["total"] = 0
 
+                hp_level = _resolve_hp_level_from_config(config_map)
+                add_log(f"HP-OCR usando nível de compressão: {hp_level}")
+
                 output_filename = f"opt_{task_id}_{file.filename}"
                 output_path = os.path.join(UPLOAD_FOLDER, output_filename)
 
@@ -204,7 +244,9 @@ def processar():
                 try:
                     # 🚀 1ª tentativa: HP-OCR no PDF completo
                     result_path = process_pdf_high_performance(
-                        input_path, callback=hp_callback
+                        input_path,
+                        callback=hp_callback,
+                        compression_level=hp_level,
                     )
 
                     # Move o resultado para o caminho esperado
@@ -336,7 +378,7 @@ def processar():
                 output_filename = f"opt_{task_id}_{file.filename}"
                 output_path = os.path.join(UPLOAD_FOLDER, output_filename)
 
-                add_log("Iniciando compressão de Alta Performance (Xeon)...")
+                add_log("Iniciando compressão...")
                 progress_db[task_id]["status"] = "Compressão HP em andamento..."
 
                 def callback(processed_count, total_pages):

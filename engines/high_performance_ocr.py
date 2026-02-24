@@ -3,7 +3,7 @@ Motor de OCR de alta performance para PDFs.
 
 Otimizado para Intel Xeon E5-2620 v4 (8 núcleos / 16 threads @ 2.10GHz).
 Usa ProcessPoolExecutor com 14 workers para paralelização massiva,
-pipeline direto pdftoppm → tesseract → ghostscript (merge),
+pipeline direto fitz → tesseract → ghostscript (merge),
 e RAM Disk em /mnt/ramdisk para I/O zero-latência.
 
 Variável OMP_THREAD_LIMIT=1 deve ser definida ANTES de qualquer import
@@ -17,17 +17,65 @@ import logging
 import subprocess
 import concurrent.futures
 from pathlib import Path
+import fitz  # PyMuPDF
 
 # ── Configurações ────────────────────────────────────────────────────────────
 MAX_WORKERS = 14             # 14 de 16 threads → reserva 2 para OS/Flask
 RAMDISK_BASE = "/mnt/ramdisk"  # RAM Disk primário
 RAMDISK_FALLBACK = "/dev/shm"  # Fallback padrão Linux
 TESSERACT_LANG = "por+eng"
-TESSERACT_DPI = 300
+TESSERACT_DPI = 100
 GS_RENDERING_THREADS = 16
 GS_BUFFER_SPACE = 1_000_000_000  # 1 GB de buffer para o Ghostscript
 PDFTOPPM_FORMAT = "png"        # PNG sem perda para máxima qualidade OCR
 # ─────────────────────────────────────────────────────────────────────────────
+
+
+def _mode(values: list[int]) -> int:
+    """Retorna o valor mais frequente da lista."""
+    return max(set(values), key=values.count)
+
+
+def _resolve_gs_compression(level: int | None) -> dict:
+    """
+    Resolve configuração de compressão GS a partir do nível informado.
+
+    Suporta:
+      - Presets do front (1..7)
+      - DPI direto (ex.: 150, 70)
+    """
+    default_level = 3
+    val = default_level if level is None else int(level)
+
+    preset_to_dpi = {
+        1: 300,
+        2: 220,
+        3: 150,
+        4: 72,
+        5: 50,
+        6: 100,
+        7: 100,
+    }
+
+    if val in preset_to_dpi:
+        dpi = preset_to_dpi[val]
+    elif 20 <= val <= 600:
+        dpi = val
+    else:
+        dpi = preset_to_dpi[default_level]
+
+    if dpi >= 220:
+        pdf_settings = "/printer"
+    elif dpi >= 120:
+        pdf_settings = "/ebook"
+    else:
+        pdf_settings = "/screen"
+
+    return {
+        "dpi": dpi,
+        "pdf_settings": pdf_settings,
+        "extra_dpi": max(50, int(dpi * 0.7)),
+    }
 
 
 def _get_ramdisk_dir() -> str:
@@ -74,32 +122,30 @@ def _locate_gs() -> str:
 
 def _convert_page_to_image(pdf_path: str, page_num: int, output_prefix: str) -> str:
     """
-    Converte uma única página do PDF em imagem PNG via pdftoppm.
-    page_num é 1-indexed (padrão pdftoppm).
+    Converte uma única página do PDF em imagem PNG via PyMuPDF.
+    page_num é 1-indexed.
     Retorna o caminho da imagem gerada.
     """
-    cmd = [
-        "pdftoppm",
-        "-f", str(page_num),
-        "-l", str(page_num),
-        "-r", str(TESSERACT_DPI),
-        "-png",
-        "-singlefile",
-        pdf_path,
-        output_prefix,
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"pdftoppm falhou na página {page_num}: {result.stderr.strip()}"
-        )
-
-    expected = f"{output_prefix}.png"
-    if not os.path.isfile(expected):
-        raise FileNotFoundError(
-            f"pdftoppm não gerou a imagem esperada: {expected}"
-        )
-    return expected
+    try:
+        doc = fitz.open(pdf_path)
+        page = doc[page_num - 1]  # fitz usa 0-indexed
+        
+        # Renderiza a página com o DPI configurado
+        # fitz usa matriz de zoom: 72 DPI base, então zoom = DPI_desejado / 72
+        zoom = TESSERACT_DPI / 72
+        mat = fitz.Matrix(zoom, zoom)
+        pix = page.get_pixmap(matrix=mat, alpha=False)
+        
+        output_path = f"{output_prefix}.png"
+        pix.save(output_path)
+        doc.close()
+        
+        if not os.path.isfile(output_path):
+            raise FileNotFoundError(f"PyMuPDF não gerou a imagem: {output_path}")
+        
+        return output_path
+    except Exception as e:
+        raise RuntimeError(f"Falha ao converter página {page_num}: {e}")
 
 
 def _ocr_page(args: tuple) -> dict:
@@ -108,7 +154,7 @@ def _ocr_page(args: tuple) -> dict:
     Recebe (pdf_path, page_num, work_dir) e retorna dict com resultado.
 
     Pipeline por página:
-        1. pdftoppm  → PNG (imagem da página)
+        1. PyMuPDF → PNG (imagem da página)
         2. tesseract → PDF pesquisável (OCR)
 
     Todo I/O acontece no RAM Disk para latência mínima.
@@ -170,10 +216,11 @@ def _ocr_page(args: tuple) -> dict:
                 pass
 
 
-def _merge_pdfs_ghostscript(pdf_fragments: list, output_path: str) -> None:
+def _merge_pdfs_ghostscript(pdf_fragments: list, output_path: str, gs_cfg: dict) -> None:
     """
     Merge final de todos os fragmentos PDF usando Ghostscript com
-    flags de alta performance para o Xeon.
+    compressão agressiva. As imagens do Tesseract são re-comprimidas
+    para reduzir drasticamente o tamanho.
     """
     gs = _locate_gs()
     cmd = [
@@ -184,17 +231,34 @@ def _merge_pdfs_ghostscript(pdf_fragments: list, output_path: str) -> None:
         "-dSAFER",
         "-sDEVICE=pdfwrite",
         "-dCompatibilityLevel=1.4",
-        "-dPDFSETTINGS=/ebook",
+        f"-dPDFSETTINGS={gs_cfg['pdf_settings']}",
         f"-dNumRenderingThreads={GS_RENDERING_THREADS}",
         f"-dBufferSpace={GS_BUFFER_SPACE}",
         "-dAutoRotatePages=/None",
+        # ── Preservar fontes embutidas ────────────────────────────
+        "-dEmbedAllFonts=true",
+        "-dSubsetFonts=true",
+        # ── Compressão agressiva de imagens ──────────────────────────
+        "-dDownsampleColorImages=true",
         "-dColorImageDownsampleType=/Bicubic",
+        f"-dColorImageResolution={gs_cfg['dpi']}",
+        "-dDownsampleGrayImages=true",
         "-dGrayImageDownsampleType=/Bicubic",
+        f"-dGrayImageResolution={gs_cfg['dpi']}",
+        "-dDownsampleMonoImages=true",
+        "-dMonoImageDownsampleType=/Bicubic",
+        f"-dMonoImageResolution={gs_cfg['dpi']}",
+        # Forçar JPEG para cor/cinza (muito menor que Flate/PNG)
+        "-dAutoFilterColorImages=false",
+        "-dColorImageFilter=/DCTEncode",
+        "-dAutoFilterGrayImages=false",
+        "-dGrayImageFilter=/DCTEncode",
+        # OutputFile deve vir ANTES dos inputs
         f"-sOutputFile={output_path}",
     ] + pdf_fragments
 
     logging.info(
-        f"[HP-OCR] Ghostscript merge: {len(pdf_fragments)} fragmentos → {output_path}"
+        f"[HP-OCR] Ghostscript merge+compress: {len(pdf_fragments)} fragmentos → {output_path}"
     )
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
     if result.returncode != 0:
@@ -202,6 +266,49 @@ def _merge_pdfs_ghostscript(pdf_fragments: list, output_path: str) -> None:
             f"Ghostscript merge falhou (exit {result.returncode}): "
             f"{result.stderr.strip()}"
         )
+
+
+def _extra_compression(input_path: str, output_path: str, gs_cfg: dict) -> None:
+    """
+    Passo extra de compressão agressiva via Ghostscript.
+    Usado quando o merge ainda produz um arquivo grande.
+    Força JPEG com qualidade baixa e 100 DPI.
+    """
+    gs = _locate_gs()
+    cmd = [
+        gs,
+        "-dBATCH", "-dNOPAUSE", "-dQUIET", "-dSAFER",
+        "-sDEVICE=pdfwrite",
+        "-dCompatibilityLevel=1.4",
+        "-dPDFSETTINGS=/screen",
+        f"-dNumRenderingThreads={GS_RENDERING_THREADS}",
+        # ── Preservar fontes embutidas ────────────────────────────
+        "-dEmbedAllFonts=true",
+        "-dSubsetFonts=true",
+        # Downsample ainda mais agressivo
+        "-dDownsampleColorImages=true",
+        "-dColorImageDownsampleType=/Bicubic",
+        f"-dColorImageResolution={gs_cfg['extra_dpi']}",
+        "-dDownsampleGrayImages=true",
+        "-dGrayImageDownsampleType=/Bicubic",
+        f"-dGrayImageResolution={gs_cfg['extra_dpi']}",
+        "-dDownsampleMonoImages=true",
+        f"-dMonoImageResolution={gs_cfg['extra_dpi']}",
+        # Forçar JPEG agressivo
+        "-dAutoFilterColorImages=false",
+        "-dColorImageFilter=/DCTEncode",
+        "-dAutoFilterGrayImages=false",
+        "-dGrayImageFilter=/DCTEncode",
+        # OutputFile deve vir ANTES dos inputs
+        f"-sOutputFile={output_path}",
+        input_path,
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        if result.returncode != 0:
+            logging.warning(f"[HP-OCR] Compressão extra falhou: {result.stderr.strip()[:200]}")
+    except Exception as e:
+        logging.warning(f"[HP-OCR] Compressão extra exceção: {e}")
 
 
 def _cleanup_work_dir(work_dir: str) -> None:
@@ -219,13 +326,13 @@ def _cleanup_work_dir(work_dir: str) -> None:
 #  FUNÇÃO PRINCIPAL
 # ══════════════════════════════════════════════════════════════════════════════
 
-def process_pdf_high_performance(input_path: str, callback=None) -> str:
+def process_pdf_high_performance(input_path: str, callback=None, compression_level: int | None = None) -> str:
     """
     Processa um PDF com OCR de alta performance usando paralelização massiva.
 
     Pipeline:
         1. Conta páginas do PDF de entrada
-        2. Converte cada página para PNG (pdftoppm) em paralelo
+        2. Converte cada página para PNG (PyMuPDF) em paralelo
         3. Executa OCR (tesseract) em cada imagem em paralelo
         4. Faz merge final (ghostscript) com flags otimizadas para Xeon
 
@@ -261,6 +368,12 @@ def process_pdf_high_performance(input_path: str, callback=None) -> str:
         f"ramdisk={work_dir}"
     )
 
+    gs_cfg = _resolve_gs_compression(compression_level)
+    logging.info(
+        f"[HP-OCR] Compressão GS | nível={compression_level} | "
+        f"dpi={gs_cfg['dpi']} | perfil={gs_cfg['pdf_settings']}"
+    )
+
     try:
         # ── 1. Contagem de páginas ──────────────────────────────────────
         total_pages = _get_page_count(input_path)
@@ -271,7 +384,7 @@ def process_pdf_high_performance(input_path: str, callback=None) -> str:
             logging.warning("[HP-OCR] PDF com 0 páginas. Retornando cópia.")
             return output_path
 
-        # ── 2. Processamento paralelo (pdftoppm + tesseract) ────────────
+        # ── 2. Processamento paralelo (PyMuPDF + tesseract) ────────────
         tasks = [
             (input_path, page_num, work_dir)
             for page_num in range(1, total_pages + 1)
@@ -337,13 +450,30 @@ def process_pdf_high_performance(input_path: str, callback=None) -> str:
                 f"omitidas: {failed_pages}"
             )
 
-        # ── 4. Merge final com Ghostscript ──────────────────────────────
+        # ── 4. Merge final com Ghostscript (compressão agressiva) ─────
         # Merge intermediário no RAM Disk, depois move para destino final
         merged_tmp = os.path.join(work_dir, "merged_final.pdf")
-        _merge_pdfs_ghostscript(pdf_fragments, merged_tmp)
+        _merge_pdfs_ghostscript(pdf_fragments, merged_tmp, gs_cfg)
 
         if not os.path.isfile(merged_tmp):
             raise RuntimeError("Ghostscript não gerou o arquivo de merge final.")
+
+        merged_size_mb = os.path.getsize(merged_tmp) / (1024 * 1024)
+        logging.info(f"[HP-OCR] Merge concluído: {merged_size_mb:.2f} MB")
+
+        # ── 5. Passo extra de compressão se necessário ──────────────────
+        # Se o resultado ainda for grande, roda outra passada de compressão
+        if merged_size_mb > 5.0:
+            logging.info("[HP-OCR] Arquivo > 5MB. Aplicando compressão extra...")
+            compressed_tmp = os.path.join(work_dir, "compressed_final.pdf")
+            _extra_compression(merged_tmp, compressed_tmp, gs_cfg)
+            if os.path.isfile(compressed_tmp):
+                comp_size_mb = os.path.getsize(compressed_tmp) / (1024 * 1024)
+                logging.info(f"[HP-OCR] Compressão extra: {merged_size_mb:.2f} MB → {comp_size_mb:.2f} MB")
+                if comp_size_mb < merged_size_mb:
+                    os.replace(compressed_tmp, merged_tmp)
+                else:
+                    os.remove(compressed_tmp)
 
         # Move do RAM Disk para o destino final (disco persistente)
         shutil.move(merged_tmp, output_path)

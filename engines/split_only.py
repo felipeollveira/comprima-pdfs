@@ -6,8 +6,10 @@ import pathlib
 import pikepdf
 import logging
 import os
-import tempfile
+import subprocess
+import shutil
 from engines.ramdisk import temp_dir
+from engines.locate_gs import localizar_gs
 
 
 def split_pdf_only(pdf_path, out_dir, max_mb, on_page=None, on_volume=None, check_cancelled=None):
@@ -56,6 +58,44 @@ def split_pdf_only(pdf_path, out_dir, max_mb, on_page=None, on_volume=None, chec
                     current_page -= 1
                     break
 
+            # ── Compressão GS do volume ────────────────────────────────
+            # Cada volume é re-comprimido para garantir o menor tamanho
+            try:
+                gs_exe = localizar_gs()
+                gs_out = pathlib.Path(ram_dir) / f"gs_{pdf_path.stem}_VOL_{vol:02d}.pdf"
+                cmd = [
+                    gs_exe,
+                    "-dBATCH", "-dNOPAUSE", "-dQUIET", "-dSAFER",
+                    "-sDEVICE=pdfwrite",
+                    "-dCompatibilityLevel=1.4",
+                    "-dPDFSETTINGS=/screen",
+                    "-dDownsampleColorImages=true",
+                    "-dColorImageDownsampleType=/Bicubic",
+                    "-dColorImageResolution=100",
+                    "-dDownsampleGrayImages=true",
+                    "-dGrayImageDownsampleType=/Bicubic",
+                    "-dGrayImageResolution=100",
+                    "-dDownsampleMonoImages=true",
+                    "-dMonoImageResolution=100",
+                    "-dAutoFilterColorImages=false",
+                    "-dColorImageFilter=/DCTEncode",
+                    "-dAutoFilterGrayImages=false",
+                    "-dGrayImageFilter=/DCTEncode",
+                    "-c", ".setpdfwrite << /ColorACSImageDict << /QFactor 0.76 /Blend 1 /HSamples [2 1 1 2] /VSamples [2 1 1 2] >> /GrayACSImageDict << /QFactor 0.76 /Blend 1 /HSamples [2 1 1 2] /VSamples [2 1 1 2] >> >> setdistillerparams",
+                    "-f",
+                    f"-sOutputFile={str(gs_out)}",
+                    str(ram_out)
+                ]
+                subprocess.run(cmd, check=True, timeout=120)
+                if gs_out.exists() and gs_out.stat().st_size < ram_out.stat().st_size:
+                    ram_out.unlink()
+                    gs_out.rename(ram_out)
+                    logging.info(f"Volume {vol}: compressão GS aplicada com sucesso")
+                elif gs_out.exists():
+                    gs_out.unlink()
+            except Exception as gs_err:
+                logging.warning(f"Compressão GS do volume {vol} falhou (usando pikepdf): {gs_err}")
+
             # Log do volume criado
             size_mb = ram_out.stat().st_size / (1024 * 1024)
             logging.info(f"Volume {vol} criado com {added} páginas ({size_mb:.2f} MB)")
@@ -63,7 +103,6 @@ def split_pdf_only(pdf_path, out_dir, max_mb, on_page=None, on_volume=None, chec
                 on_volume(vol, added, size_mb)
 
             # Move do RAM Disk para destino final
-            import shutil
             shutil.move(str(ram_out), str(final_out))
             vol += 1
 

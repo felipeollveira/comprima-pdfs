@@ -8,32 +8,19 @@ from openpyxl.utils import get_column_letter
 
 LOCK = Lock()
 
-from pathlib import Path
-# DATA_DIR = Path("/mnt/dtic/PDF Otimizador")
-DATA_DIR = Path("data")  # Para testes locais, pode ser apenas "data"
-
-# 2. Construção dos caminhos (o / funciona perfeitamente com objetos Path no Linux)
-USO_XLSX = DATA_DIR / "acessos" / "uso.xlsx"
-FEEDBACK_XLSX = DATA_DIR / "feedbacks" / "feedback.xlsx"
-
-# 3. Criação das pastas no servidor Windows através do mount do Linux
-try:
-    USO_XLSX.parent.mkdir(parents=True, exist_ok=True)
-    FEEDBACK_XLSX.parent.mkdir(parents=True, exist_ok=True)
-    print("Diretórios verificados/criados com sucesso na rede!")
-except PermissionError:
-    print("Erro: O Linux não tem permissão de escrita em /mnt/dtic.")
-    print("Verifique se o mount foi feito com as opções de 'uid' e 'gid'.")
-except Exception as e:
-    print(f"Ocorreu um erro inesperado: {e}")
-
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+DATA_DIR.mkdir(exist_ok=True)
+USO_XLSX = DATA_DIR / "uso.xlsx"
+FEEDBACK_XLSX = DATA_DIR / "feedback.xlsx"
 
 HEADERS = ["Data", "Hora", "Usuário", "Ação", "Módulo", "Tempo", "Estrelas", "Descrição", "IP", "Observação"]
 
 print(f"Diretório de uso criado em: {USO_XLSX.parent}")
 
-def _ensure_dir():
-    os.makedirs(DATA_DIR, exist_ok=True)
+def _ensure_parent_dir(file_path: str):
+    parent = os.path.dirname(os.path.abspath(file_path))
+    os.makedirs(parent, exist_ok=True)
 
 
 def _agora_data_hora():
@@ -42,7 +29,6 @@ def _agora_data_hora():
 
 
 def _setup_sheet(ws):
-    # Cabeçalho + estilo (executa apenas quando o arquivo está vazio/novo)
     ws.append(HEADERS)
 
     bold = Font(bold=True)
@@ -56,14 +42,13 @@ def _setup_sheet(ws):
     ws.auto_filter.ref = f"A1:{get_column_letter(len(HEADERS))}1"
     ws.row_dimensions[1].height = 18
 
-    # Larguras iniciais (ajustáveis)
     widths = [12, 10, 18, 14, 16, 10, 45, 16, 30]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
 
 def _append_xlsx(path: str, values: list):
-    _ensure_dir()
+    _ensure_parent_dir(path)
 
     with LOCK:
         if not os.path.exists(path):
@@ -78,7 +63,6 @@ def _append_xlsx(path: str, values: list):
         wb = load_workbook(path)
         ws = wb.active
 
-        # Se estiver “vazio” ou sem cabeçalho, recria cabeçalho
         if ws.max_row < 1 or (ws.max_row == 1 and ws["A1"].value != "Data"):
             ws.delete_rows(1, ws.max_row)
             _setup_sheet(ws)
