@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador ETCM - Teste de PDF</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            margin: 0 0 8px 0;
+            font-size: 1.5rem;
+            color: #333;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 6px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s;
+        }
+        .upload-area:hover, .upload-area.drag-over {
+            border-color: #007bff;
+        }
+        .upload-area input { display: none; }
+        .upload-area p { margin: 0; color: #666; }
+        .btn {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn:hover { background: #0056b3; }
+        .file-selected {
+            margin-top: 16px;
+            padding: 12px;
+            background: #e9f5ff;
+            border-radius: 4px;
+            display: none;
+        }
+        .file-selected.visible { display: block; }
+        .processing {
+            margin-top: 20px;
+            text-align: center;
+            display: none;
+        }
+        .processing.visible { display: block; }
+        .progress {
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #007bff;
+            width: 0%;
+            transition: width 0.2s;
+        }
+        .results {
+            margin-top: 24px;
+            display: none;
+        }
+        .results.visible { display: block; }
+        .summary {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        .summary-item {
+            flex: 1;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            text-align: center;
+        }
+        .summary-item.ok { border-left: 4px solid #28a745; }
+        .summary-item.warning { border-left: 4px solid #dc3545; }
+        .summary-item .number {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #333;
+        }
+        .summary-item .label {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+        tr.warning { background: #fff5f5; }
+        .status {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .status.ok { background: #d4edda; color: #155724; }
+        .status.exceeded { background: #f8d7da; color: #721c24; }
+        .clear-btn {
+            margin-top: 20px;
+            padding: 8px 16px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .clear-btn:hover { background: #545b62; }
+        .info-box {
+            margin-top: 20px;
+            padding: 12px;
+            background: #fff3cd;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <a href="/">Voltar para página inicial</a>
+    <div class="container">
+        <h1>Teste seu PDF aqui</h1>
+        <p class="subtitle">Teste seu PDF antes de enviar - verifica se cada pagina esta dentro do limite de 500KB e se é pesquisável (OCR)</p>
+
+        <div class="upload-area" id="uploadArea">
+            <p><strong>Arraste o PDF aqui</strong> ou clique para selecionar</p>
+            <button class="btn">Selecionar PDF</button>
+            <input type="file" id="fileInput" accept=".pdf">
+        </div>
+
+        <div class="file-selected" id="fileSelected">
+            <strong id="fileName"></strong> (<span id="fileSize"></span>)
+        </div>
+
+        <div class="processing" id="processing">
+            <p id="progressText">Analisando...</p>
+            <div class="progress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+        </div>
+
+        <div class="results" id="results">
+            <div class="summary">
+                <div class="summary-item ok">
+                    <div class="number" id="okCount">0</div>
+                    <div class="label">Paginas OK</div>
+                </div>
+                <div class="summary-item warning">
+                    <div class="number" id="warningCount">0</div>
+                    <div class="label">Excedem 500KB</div>
+                </div>
+                <div class="summary-item ok">
+                    <div class="number" id="ocrCount">0</div>
+                    <div class="label">Com OCR/Texto</div>
+                </div>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Pagina</th>
+                        <th>Tamanho</th>
+                        <th>Pesquisável (OCR)</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+
+            <div class="info-box" id="infoBox"></div>
+            <button class="clear-btn" id="clearBtn">Limpar e testar outro</button>
+        </div>
+    </div>
+
+    <script>
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileSelected = document.getElementById('fileSelected');
+        const processing = document.getElementById('processing');
+        const results = document.getElementById('results');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', e => e.target.files[0] && processFile(e.target.files[0]));
+
+        uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('drag-over'); });
+        uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
+        uploadArea.addEventListener('drop', e => {
+            e.preventDefault();
+            uploadArea.classList.remove('drag-over');
+            if (e.dataTransfer.files[0]?.type === 'application/pdf') processFile(e.dataTransfer.files[0]);
+        });
+
+        document.getElementById('clearBtn').addEventListener('click', () => {
+            fileInput.value = '';
+            fileSelected.classList.remove('visible');
+            results.classList.remove('visible');
+            uploadArea.style.display = 'block';
+        });
+
+        async function processFile(file) {
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = (file.size / 1024 / 1024).toFixed(2) + ' MB';
+            fileSelected.classList.add('visible');
+            uploadArea.style.display = 'none';
+            processing.classList.add('visible');
+            results.classList.remove('visible');
+
+            try {
+                document.getElementById('progressText').textContent = 'Enviando PDF para analise do backend...';
+                document.getElementById('progressBar').style.width = '35%';
+
+                const formData = new FormData();
+                formData.append('pdf', file);
+
+                const resp = await fetch('/test/analisar', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                document.getElementById('progressText').textContent = 'Processando resposta...';
+                document.getElementById('progressBar').style.width = '85%';
+
+                const data = await resp.json().catch(() => ({}));
+                if (!resp.ok || !data.ok) {
+                    throw new Error(data?.error || 'Falha ao analisar PDF no servidor.');
+                }
+
+                const total = Number(data.total || 0);
+                const limitKB = Number(data.limit_kb || 500);
+                const pageResults = Array.isArray(data.page_results) ? data.page_results : [];
+
+                processing.classList.remove('visible');
+                document.getElementById('progressBar').style.width = '100%';
+
+                const warnings = Number(data?.summary?.warning_count ?? pageResults.filter(p => p.exceeds).length);
+                const ocrPages = Number(data?.summary?.ocr_count ?? pageResults.filter(p => p.has_ocr).length);
+                const okPages = Number(data?.summary?.ok_count ?? (total - warnings));
+
+                document.getElementById('okCount').textContent = okPages;
+                document.getElementById('warningCount').textContent = warnings;
+                document.getElementById('ocrCount').textContent = ocrPages;
+
+                const tbody = document.getElementById('tableBody');
+                tbody.innerHTML = pageResults.map(p => `
+                    <tr class="${p.exceeds ? 'warning' : ''}">
+                        <td>${p.page}</td>
+                        <td>${Number(p.size_kb || 0).toFixed(0)} KB</td>
+                        <td><span class="status ${p.has_ocr ? 'ok' : 'exceeded'}">${p.has_ocr ? '✓ Sim (' + (p.text_chars || 0) + ' chars)' : '✗ Não'}</span></td>
+                        <td><span class="status ${p.exceeds ? 'exceeded' : 'ok'}">${p.exceeds ? 'Excede limite' : 'OK'}</span></td>
+                    </tr>
+                `).join('');
+
+                let infoMsg = '';
+                if (warnings > 0) {
+                    infoMsg += `<strong>⚠️ Aviso tamanho:</strong> ${warnings} pagina(s) excedem o limite de ${limitKB}KB. O ETCMBA pode rejeitar este arquivo.<br>`;
+                } else if (warnings === 0) {
+                    infoMsg += `<strong>✓ Tamanho OK:</strong> Todas as paginas estao dentro do limite.<br>`;
+                }
+
+                if (ocrPages < total) {
+                    infoMsg += `<strong>⚠️ Aviso OCR:</strong> ${total - ocrPages} pagina(s) nao tem texto pesquisavel. Considere aplicar OCR.`;
+                } else {
+                    infoMsg += `<strong>✓ OCR OK:</strong> Todas as paginas tem texto pesquisavel.`;
+                }
+
+                if (data.measurement_label) {
+                    infoMsg += `<br><small><strong>Metodo de tamanho:</strong> ${data.measurement_label}</small>`;
+                }
+
+                document.getElementById('infoBox').innerHTML = infoMsg;
+
+                results.classList.add('visible');
+            } catch (err) {
+                processing.classList.remove('visible');
+                alert('Erro ao processar o PDF: ' + err.message);
+                uploadArea.style.display = 'block';
+            }
+        }
+    </script>
+</body>
+</html>

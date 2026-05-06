@@ -3,89 +3,258 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin - PDF Otimizier</title>
+  <title>Ferramenta de PDF</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap">
   <style>
-    body { font-family: Arial, sans-serif; margin: 18px; color:#0f172a; background:#f8fafc; }
-    .top { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
-    .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr)); gap: 12px; margin-top: 12px;}
-    .card { background:#fff; border:1px solid #e2e8f0; border-radius:14px; padding:14px; }
-    .muted { color:#64748b; font-size:12px; }
-    .big { font-size:28px; font-weight:800; }
-    table { width:100%; border-collapse:collapse; margin-top:12px; background:#fff; border-radius:14px; overflow:hidden; }
-    th, td { border-bottom:1px solid #eef2f7; padding:10px; font-size:13px; vertical-align:top; }
-    th { background:#f1f5f9; text-align:left; }
-    .stars { font-weight:800; }
-    .pill { display:inline-block; padding:2px 10px; border-radius:999px; background:#0ea5e9; color:#fff; font-size:12px; }
+    :root {
+      --ink: #0f172a;
+      --muted: #64748b;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --stroke: #e2e8f0;
+      --accent: #0f766e;
+      --accent-2: #f59e0b;
+      --shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    body {
+      font-family: "Space Grotesk", "Sora", "Segoe UI", sans-serif;
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 700px at 10% -10%, #e0f2fe 0, transparent 60%),
+        radial-gradient(900px 500px at 95% 0%, #fef3c7 0, transparent 55%),
+        var(--bg);
+    }
+
+    .wrap { max-width: 1200px; margin: 24px auto 40px; padding: 0 18px; }
+    .top { display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap; }
+    .eyebrow { text-transform: uppercase; letter-spacing: 2px; font-size: 11px; color: var(--muted); }
+    h1 { margin: 4px 0 6px; font-size: 26px; }
+    .muted { color: var(--muted); font-size: 12px; }
+    .note { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+    .section { margin-top: 22px; }
+    .section-title {
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-weight:700;
+      font-size:12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color:#1f2937;
+    }
+    .section-title::before {
+      content:"";
+      width:18px;
+      height:2px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    .cards { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 14px; margin-top: 12px; }
+    .card {
+      background: var(--card);
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      padding:14px 16px;
+      box-shadow: var(--shadow);
+      animation: riseIn 0.4s ease both;
+      animation-delay: calc(var(--i) * 40ms);
+    }
+    .big { font-size:26px; font-weight:700; margin-top: 6px; }
+    .sub { margin-top: 6px; font-size: 12px; color: #475569; }
+
+    .pill {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding: 6px 12px;
+      border-radius:999px;
+      background: var(--accent);
+      color:#fff;
+      font-size:12px;
+      box-shadow: var(--shadow);
+    }
+    .badges { display:flex; gap:8px; flex-wrap:wrap; margin-top: 8px; }
+    .badge {
+      background: rgba(15, 118, 110, 0.08);
+      color: var(--accent);
+      border:1px solid rgba(15, 118, 110, 0.2);
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+    }
+
+    table {
+      width:100%;
+      border-collapse:collapse;
+      margin-top:12px;
+      background:#fff;
+      border-radius:16px;
+      overflow:hidden;
+      box-shadow: var(--shadow);
+    }
+    th, td { border-bottom:1px solid #eef2f7; padding:10px 12px; font-size:12px; vertical-align:top; }
+    th {
+      background:#f8fafc;
+      text-align:left;
+      color:#475569;
+      font-weight:600;
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      font-size: 11px;
+    }
+    tr:last-child td { border-bottom: 0; }
+    .stars { font-weight:700; color: #b45309; }
+
+    @keyframes riseIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 720px) {
+      h1 { font-size: 22px; }
+      .cards { grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); }
+      .pill { width: 100%; justify-content: center; }
+    }
   </style>
 </head>
 <body>
-  <div class="top">
-    <div>
-      <h2 style="margin:0;">📊 Admin - Métricas</h2>
-      <div class="muted">Arquivos: <b>data/usage.csv</b> e <b>data/feedback.csv</b> (abre no Excel)</div>
-    </div>
-    <div class="pill">Ativas agora: {{ active_tasks }}</div>
+  <div class="wrap">
+    <header class="top">
+      <div>
+        <div class="eyebrow">Painel interno</div>
+        <h1>Admin - Metricas</h1>
+        <div class="badges">
+          <div class="badge">Inicios: {{ metrics.inicios }}</div>
+          <div class="badge">Concluidos: {{ metrics.concluidos }}</div>
+          <div class="badge">Erros: {{ metrics.erros }}</div>
+          <div class="badge">Cancelados: {{ metrics.cancelados }}</div>
+        </div>
+      </div>
+      <div class="pill">Ativas agora: {{ active_tasks }}</div>
+    </header>
+
+    <section class="section">
+      <div class="section-title">Resumo</div>
+      <div class="cards">
+        <div class="card" style="--i:1">
+          <div class="muted">Uploads</div>
+          <div class="big">{{ metrics.uploads }}</div>
+          <div class="sub">Total: {{ metrics.total_upload_mb|round(2) }} MB</div>
+        </div>
+        <div class="card" style="--i:2">
+          <div class="muted">Downloads</div>
+          <div class="big">{{ metrics.downloads }}</div>
+          <div class="sub">Saida total: {{ metrics.total_output_mb|round(2) }} MB</div>
+        </div>
+        <div class="card" style="--i:3">
+          <div class="muted">Processados</div>
+          <div class="big">{{ metrics.concluidos }}</div>
+          <div class="sub">Erros: {{ metrics.erros }} | Cancelados: {{ metrics.cancelados }}</div>
+        </div>
+        <div class="card" style="--i:4">
+          <div class="muted">Feedbacks</div>
+          <div class="big">{{ metrics.feedback_count }}</div>
+          <div class="sub">Media: {{ metrics.media_estrelas }} | Aprovacao: {{ metrics.taxa_aprovacao_pct }}%</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-title">Tamanho e tempo</div>
+      <div class="cards">
+        <div class="card" style="--i:1">
+          <div class="muted">Entrada media</div>
+          <div class="big">{{ metrics.avg_input_mb|round(2) }} MB</div>
+          <div class="sub">Total entrada: {{ metrics.total_input_mb|round(2) }} MB</div>
+        </div>
+        <div class="card" style="--i:2">
+          <div class="muted">Saida media</div>
+          <div class="big">{{ metrics.avg_output_mb|round(2) }} MB</div>
+          <div class="sub">Total saida: {{ metrics.total_output_mb|round(2) }} MB</div>
+        </div>
+        <div class="card" style="--i:3">
+          <div class="muted">Economia total</div>
+          <div class="big">{{ metrics.saved_total_mb|round(2) }} MB</div>
+          <div class="sub">Reducao media: {{ metrics.reduction_pct }}%</div>
+        </div>
+        <div class="card" style="--i:4">
+          <div class="muted">Tempo medio</div>
+          <div class="big">{{ metrics.avg_time_sec|round(2) }} s</div>
+          <div class="sub">Tempo max: {{ metrics.max_time_sec|round(2) }} s</div>
+        </div>
+      </div>
+      <div class="note">Os tamanhos sao calculados a partir dos eventos de upload e conclusao.</div>
+    </section>
+
+    <section class="section">
+      <div class="section-title">Ultimos feedbacks</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Data/hora</th>
+            <th>Stars</th>
+            <th>Modulo</th>
+            <th>Mensagem</th>
+            <!-- <th>IP</th> -->
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in feedback %}
+          <tr>
+            <td>{{ r.ts }}</td>
+            <td class="stars">{{ r.stars }}★</td>
+            <td>{{ r.module }}</td>
+            <td>{{ r.message }}</td>
+            <!-- <td>{{ r.ip }}</td> -->
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section">
+      <div class="section-title">Ultimos eventos de uso</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Data/hora</th>
+            <th>Evento</th>
+            <!-- <th>Endpoint</th> -->
+            <th>Task</th>
+            <th>Entrada (MB)</th>
+            <th>Saida (MB)</th>
+            <th>Tempo (s)</th>
+            <th>Desc</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in usage %}
+          <tr>
+            <td>{{ r.ts }}</td>
+            <td>{{ r.event }}</td>
+            <!-- <td>{{ r.endpoint }}</td> -->
+            <td>{{ r.task_id }}</td>
+            <td>{{ r.in_mb|round(2) if r.in_mb != "" else "" }}</td>
+            <td>{{ r.out_mb|round(2) if r.out_mb != "" else "" }}</td>
+            <td>{{ r.tempo }}</td>
+            <td>{{ r.extra }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </section>
   </div>
+  <script>
+    alert("I/O por MB apartir de 28/04/2026")
+    // Auto-refresh a cada 120 segundos
+    setTimeout(() => {
+      location.reload();
+    }, 120000);  
+  </script>
 
-  <div class="cards">
-    <div class="card"><div class="muted">Uploads</div><div class="big">{{ metrics.uploads }}</div></div>
-    <div class="card"><div class="muted">Downloads</div><div class="big">{{ metrics.downloads }}</div></div>
-    <div class="card"><div class="muted">Feedbacks</div><div class="big">{{ metrics.feedback_count }}</div></div>
-    <div class="card">
-      <div class="muted">Média de estrelas</div>
-      <div class="big">{{ metrics.avg_stars }}</div>
-      <div class="muted">Aprovação (4-5★): {{ metrics.approval_rate_pct }}%</div>
-    </div>
-  </div>
-
-  <h3 style="margin:18px 0 6px;">⭐ Últimos feedbacks</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>Data/hora</th>
-        <th>Stars</th>
-        <th>Módulo</th>
-        <th>Mensagem</th>
-        <th>IP</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in feedback %}
-      <tr>
-        <td>{{ r.ts }}</td>
-        <td class="stars">{{ r.stars }}★</td>
-        <td>{{ r.module }}</td>
-        <td>{{ r.message }}</td>
-        <td>{{ r.ip }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <h3 style="margin:18px 0 6px;">Últimos eventos de uso</h3>
-  <table>
-    <thead>
-      <tr>
-        <th>Data/hora</th>
-        <th>Evento</th>
-        <th>Endpoint</th>
-        <th>Task</th>
-        <th>IP</th>
-        <th>Extra</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for r in usage %}
-      <tr>
-        <td>{{ r.ts }}</td>
-        <td>{{ r.event }}</td>
-        <td>{{ r.endpoint }}</td>
-        <td>{{ r.job_id }}</td>
-        <td>{{ r.ip }}</td>
-        <td>{{ r.extra }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
 </body>
 </html>

@@ -7,9 +7,9 @@
     <link rel="icon" href="https://sai.io.org.br/Handler.ashx?f=i&query=0ef801ef-3d21-4843-93be-6c0979f314aa.jpg" alt="Favicon Lauro de Freitas">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
 
     <link rel="stylesheet" href="/assets/css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 
 <body>
@@ -40,6 +40,15 @@
         <div class="text-success small mb-1">> Aguardando logs do servidor...</div>
     </div>
 
+    <!-- Batch file tracker (visible only for multi-PDF) -->
+    <div id="batchTracker" class="mt-4" style="width: 80%; max-width: 600px; display: none;">
+        <div class="batch-tracker-header d-flex justify-content-between align-items-center mb-2">
+            <span class="small text-white-50 fw-bold" style="letter-spacing: 1px; text-transform: uppercase;">Progresso do Lote</span>
+            <span class="badge bg-primary rounded-pill" id="batchCounter">0/0</span>
+        </div>
+        <div id="batchFileList"></div>
+    </div>
+
     <p class="text-white-50 mt-3 small" id="quick-messages">Otimizando PDF e OCR</p>
 
     <button id="btnCancelar" class="btn btn-danger mt-3" style="min-width: 150px; display: none;">Cancelar</button>
@@ -67,33 +76,34 @@
 
     <div class="card p-4 mb-4 border-0 shadow-sm" style="border-radius: 16px;">
         <div class="row align-items-center">
-            <div class="col-lg-4">
+            <div class="col-lg-5">
                 <div class="drop-zone rounded-4 p-4 text-center" id="dropZone">
                     <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="mb-2">
                         <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
                     </svg>
                     <p class="mb-0 small fw-bold text-muted" id="dropText">Arraste o PDF aqui ou clique</p>
                     <div id="alertAssinatura" class="alert alert-warning mt-3 d-none"></div>
-                    <input type="file" id="pdfInput" class="d-none" accept=".pdf">
+                    <input type="file" id="pdfInput" class="d-none" accept=".pdf" multiple>
                 </div>
+                <p class="text-muted small mt-2 text-center">Máximo 3 PDFs por lote</p>
             </div>
 
-            <div class="col-lg-8 text-lg-end mt-4 mt-lg-0">
+            <div class="col-lg-7 text-lg-end mt-4 mt-lg-0">
                 <label class="text-muted small d-block mb-1 fw-bold" style="letter-spacing: 1px; opacity: 0.6;">
-                    CONFIGURAÇÃO GLOBAL
+                    NÍVEL DE COMPRESSÃO
                 </label>
-                <p class="small text-muted mb-3">Selecione para aplicar o mesmo nível de compressão em todo o documento</p>
+                <p class="small text-muted mb-3">Selecione o nível que será aplicado a todos os PDFs do lote</p>
 
                 <div class="d-flex flex-wrap justify-content-lg-end gap-2">
                     <div class="btn-group shadow-sm" role="group" aria-label="Níveis de DPI">
-                        <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(1)" title="Mantém alta fidelidade">Padrão</button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(2)" title="Alta Qualidade">HQ</button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(3)">150 DPI</button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(4)">72 DPI</button>
-                        <button type="button" class="btn btn-outline-secondary btn-sm px-3" onclick="bulkApply(5)">50 DPI</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-3 level-btn" data-level="1" title="Mantém alta fidelidade">Padrão</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-3 level-btn" data-level="2" title="Alta Qualidade">HQ</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-3 level-btn active" data-level="3">150 DPI</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-3 level-btn" data-level="4">72 DPI</button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm px-3 level-btn" data-level="5">50 DPI</button>
                     </div>
 
-                    <button type="button" class="btn btn-dark btn-sm px-4 shadow-sm fw-bold" onclick="bulkApply(6)"
+                    <button type="button" class="btn btn-dark btn-sm px-4 shadow-sm fw-bold level-btn" data-level="6"
                             style="background: var(--dark); border-radius: 8px;">
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="me-1">
                             <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m-3-3h6"></path>
@@ -101,14 +111,32 @@
                         OCR + DIVIDIR
                     </button>
                 </div>
+
+                <!-- Resumo dos arquivos na fila -->
+                <div id="fileQueue" class="mt-3"></div>
+
+                <!-- Seletor de páginas para compressão extra -->
             </div>
         </div>
     </div>
+    <div id="pageCompressPanel" class="mt-3" style="display:none;">
+        <div class="d-flex align-items-center justify-content-between mb-2">
+            <label class="text-muted small fw-bold mb-0" style="letter-spacing:1px; font-size:0.65rem; text-transform:uppercase;">
+                COMPRESSÃO EXTRA POR PÁGINA
+            </label>
+            <div class="d-flex gap-1">
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" id="btnSelectAll" style="font-size:0.7rem;">Todas</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm py-0 px-2" id="btnSelectNone" style="font-size:0.7rem;">Nenhuma</button>
+            </div>
+        </div>
+        <p class="small text-muted mb-2" style="font-size:0.75rem;">Marque as páginas com imagens desnecessárias para aplicar compressão mais agressiva</p>
+        <div id="pageThumbnails" class="page-thumb-grid"></div>
+    </div>
 
     <form id="mainForm" method="post" enctype="multipart/form-data">
-        <input type="file" name="pdf" id="hiddenFile" style="display:none">
+        <input type="file" name="pdf" id="hiddenFile" style="display:none" multiple>
         <input type="hidden" name="config_map" id="configMapInput">
-        <div id="previewArea" class="preview-grid"></div>
+        <input type="hidden" name="extra_compress_pages" id="extraCompressPagesInput" value="">
     </form>
 </div>
 
@@ -120,30 +148,12 @@
         </span>
         <section class="flex-row align-items-center gap-3 d-flex justify-content-center">
             <a href="/docs" class="btn btn-outline-secondary btn-sm mt-2">Como usar?</a>
+            <a href="/test" class="btn btn-outline-secondary btn-sm mt-2">Teste seu PDF</a>
+
             <button id="openFeedback" class="btn btn-outline-secondary btn-sm mt-2">Enviar feedback</button>
         </section>
     </div>
 </footer>
-
-<!-- MODAL LUPA / PREVIEW -->
-<div id="pdfPreviewModal" class="pdf-modal hidden" aria-hidden="true">
-    <div class="pdf-modal__backdrop" data-close="1"></div>
-    <div class="pdf-modal__panel" role="dialog" aria-modal="true" aria-label="Pré-visualização do PDF">
-        <div class="pdf-modal__header">
-            <div class="pdf-modal__title" id="pdfModalTitle">Pré-visualização</div>
-            <div class="pdf-modal__actions">
-                <button id="zoomOutBtn" type="button" class="btn-mini" title="Diminuir zoom">−</button>
-                <button id="zoomInBtn" type="button" class="btn-mini" title="Aumentar zoom">+</button>
-                <button id="closePdfModalBtn" type="button" class="btn-mini" title="Fechar">Fechar</button>
-            </div>
-        </div>
-        <div class="pdf-modal__body">
-            <div class="pdf-modal__canvasWrap">
-                <canvas id="pdfPreviewCanvas"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
 
 <!-- FEEDBACK -->
 <div id="feedbackModal" class="fb-modal hidden" aria-hidden="true">

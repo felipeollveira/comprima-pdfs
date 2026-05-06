@@ -464,3 +464,233 @@
 .toastcontainer .toast-box.success{ border-left: 6px solid #22c55e; }
 .toastcontainer .toast-box.error{   border-left: 6px solid #ef4444; }
 .toastcontainer .toast-box.info{    border-left: 6px solid #60a5fa; }
+
+/* ===== BATCH TRACKER (Multi-PDF progress) ===== */
+.batch-tracker-header {
+  padding: 0 2px;
+}
+
+.batch-file-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  margin-bottom: 4px;
+  font-size: 0.82rem;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.batch-file-pending {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.4);
+}
+
+.batch-file-active {
+  background: rgba(16,185,129,0.1);
+  border: 1px solid rgba(16,185,129,0.25);
+  color: #e2e8f0;
+}
+
+.batch-file-done {
+  background: rgba(16,185,129,0.08);
+  border: 1px solid rgba(16,185,129,0.15);
+  color: rgba(255,255,255,0.55);
+}
+
+.batch-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.batch-icon.done {
+  color: #10b981;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.batch-icon.pending {
+  color: rgba(255,255,255,0.2);
+  font-size: 8px;
+}
+
+.batch-file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: 'Inter', sans-serif;
+}
+
+.batch-file-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 0 0 10px 10px;
+}
+
+.batch-file-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #34d399);
+  border-radius: 0 0 10px 10px;
+  transition: width 0.4s ease;
+}
+
+/* ===== PAGE SELECTOR — Compressão Extra ===== */
+.thumb-carousel-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding: 2px;
+}
+
+.thumb-carousel-btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  border-radius: 8px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.thumb-carousel-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.thumb-carousel-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.thumb-carousel-meta {
+  flex: 1;
+  text-align: center;
+  min-width: 0;
+}
+
+.thumb-carousel-slide {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: #334155;
+}
+
+.thumb-carousel-range {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.page-thumb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+  scrollbar-width: thin;
+}
+
+.page-thumb-item {
+  position: relative;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #fff;
+}
+
+.page-thumb-item:hover {
+  border-color: #94a3b8;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.page-thumb-item.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(16,185,129,0.25);
+}
+
+.page-thumb-item.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.page-thumb-canvas {
+  width: 100%;
+  aspect-ratio: 3/4;
+  display: block;
+  background: #f8fafc;
+}
+
+.page-thumb-image {
+  width: 100%;
+  aspect-ratio: 3/4;
+  display: block;
+  background: #f1f5f9;
+  object-fit: contain;
+}
+
+.page-thumb-image.ready {
+  background: #fff;
+}
+
+.page-thumb-label {
+  text-align: center;
+  font-size: 0.65rem;
+  color: #64748b;
+  padding: 2px 0 4px;
+  font-weight: 600;
+}
+
+.page-thumb-item.selected .page-thumb-label {
+  color: var(--primary);
+}
+
+@media (max-width: 768px) {
+  .thumb-carousel-controls {
+    gap: 6px;
+  }
+
+  .thumb-carousel-btn {
+    font-size: 0.68rem;
+    padding: 3px 8px;
+  }
+
+  .thumb-carousel-range {
+    font-size: 0.66rem;
+  }
+
+  .page-thumb-grid {
+    grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+    gap: 6px;
+    max-height: 240px;
+  }
+}

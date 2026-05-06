@@ -118,7 +118,55 @@
     </section>
 
     <section>
-        <h2>5. Boas Práticas</h2>
+        <h2>5. Entendendo o Tamanho dos Arquivos (KB vs MB)</h2>
+        <div class="highlight-box">
+            <p>Muitos usuários confundem o tamanho exibido em <strong>KB (quilobytes)</strong> com <strong>MB (megabytes)</strong>. Veja como converter:</p>
+            <p style="text-align:center; font-size:1.2em; margin: 15px 0;">
+                <strong>Tamanho em MB = Tamanho em KB ÷ 1024</strong>
+            </p>
+            <p><strong>Exemplo prático:</strong> Um arquivo com <strong>5.055 KB</strong> parece ultrapassar 5 MB, mas na verdade:</p>
+            <p style="text-align:center; font-size:1.1em; background:#fff; padding:10px; border-radius:5px;">
+                5.055 KB ÷ 1024 = <strong>4,94 MB</strong> &nbsp;✅ &nbsp;(ainda está abaixo de 5 MB!)
+            </p>
+            <p style="margin-top:10px;"><strong>Referência rápida:</strong></p>
+            <table style="width:100%; border-collapse:collapse; margin-top:5px;">
+                <tr style="background:var(--primary-color); color:white;">
+                    <th style="padding:8px; text-align:center;">KB</th>
+                    <th style="padding:8px; text-align:center;">MB</th>
+                    <th style="padding:8px; text-align:center;">Dentro do limite de 5 MB?</th>
+                </tr>
+                <tr style="background:#eef0ff;">
+                    <td style="padding:8px; text-align:center;">4.096 KB</td>
+                    <td style="padding:8px; text-align:center;">4,00 MB</td>
+                    <td style="padding:8px; text-align:center;">✅ Sim</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px; text-align:center;">5.000 KB</td>
+                    <td style="padding:8px; text-align:center;">4,88 MB</td>
+                    <td style="padding:8px; text-align:center;">✅ Sim</td>
+                </tr>
+                <tr style="background:#eef0ff;">
+                    <td style="padding:8px; text-align:center;">5.055 KB</td>
+                    <td style="padding:8px; text-align:center;">4,94 MB</td>
+                    <td style="padding:8px; text-align:center;">✅ Sim</td>
+                </tr>
+                <tr>
+                    <td style="padding:8px; text-align:center;">5.120 KB</td>
+                    <td style="padding:8px; text-align:center;">5,00 MB</td>
+                    <td style="padding:8px; text-align:center;">⚠️ Exato</td>
+                </tr>
+                <tr style="background:#ffe0e0;">
+                    <td style="padding:8px; text-align:center;">5.500 KB</td>
+                    <td style="padding:8px; text-align:center;">5,37 MB</td>
+                    <td style="padding:8px; text-align:center;">❌ Não</td>
+                </tr>
+            </table>
+            <p style="margin-top:10px;"><strong>Regra simples:</strong> O arquivo só ultrapassa 5 MB quando tem mais de <strong>5.120 KB</strong>.</p>
+        </div>
+    </section>
+
+    <section>
+        <h2>6. Boas Práticas</h2>
         <ul>
             <li>Não processe documentos que já possuam assinatura digital.</li>
             <li>Confira o tamanho final dos arquivos após o processamento.</li>
